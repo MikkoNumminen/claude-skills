@@ -141,12 +141,16 @@ function readMeta(jsonlPath) {
   }
 }
 
-// The harness encodes <cwd> by replacing path separators and ':' with '-'.
-// Single source of truth for the encoding so the resolver and the error
-// message can't drift if the harness ever changes how it spells project
-// directories.
+// The harness encodes <cwd> by replacing path separators, ':', and '.' with
+// '-'. Verified by inspecting actual entries under ~/.claude/projects/ —
+// e.g. C:\Users\vandr                                          → C--Users-vandr,
+//      D:\koodaamista\mikkonumminen.dev                        → d--koodaamista-mikkonumminen-dev,
+//      D:\koodaamista\mikkonumminen.dev\.claude\worktrees\foo  → D--koodaamista-mikkonumminen-dev--claude-worktrees-foo
+// No collapsing of consecutive dashes. Single source of truth for the
+// encoding so the resolver and the error message can't drift if the harness
+// ever changes how it spells project directories.
 function encodeCwd(cwd) {
-  return cwd.replace(/[\\/]/g, '-').replace(/:/g, '-').toLowerCase();
+  return cwd.replace(/[\\/.:]/g, '-').toLowerCase();
 }
 
 function resolveProjectDir(cwd, projectsRoot) {

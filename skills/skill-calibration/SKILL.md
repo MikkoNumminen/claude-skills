@@ -34,16 +34,41 @@ The work is mostly sub-agent dispatch (main-thread) plus output file writes. No 
 
 ### 1. Resolve scope
 
-Parse args. Three forms:
+Parse args. The full surface, in one place:
 
-- `--skill <name>` or just `<name>` as the first positional — single skill.
-- `--skills foo,bar,baz` — explicit list (comma-separated).
-- `--repo <name>` — every non-redirect skill in that repo's `.claude/skills/` (the consumer-repo layout) or `skills/` (the `claude-skills` library layout).
+**Scope flags (pick one — they're mutually exclusive):**
+
+| Flag | Effect |
+| --- | --- |
+| `--skill <name>` (or `<name>` as first positional) | Single skill. |
+| `--skills foo,bar,baz` | Explicit comma-separated list. |
+| `--repo <name>` | Every non-redirect skill in one repo (consumer-layout or library-layout, auto-detected). |
+| `--portfolio` | Every non-redirect skill across `D:/koodaamista/*/.claude/skills/*/SKILL.md` (every consumer repo) + `D:/koodaamista/claude-skills/skills/*/SKILL.md` (the library). Heaviest mode — multiplies sub-agent count by repo-count. Confirm with the user once before dispatching; this routinely costs 3–10M tokens. |
+
+**Task flags (optional):**
+
+| Flag | Effect |
+| --- | --- |
+| `--task <text>` | Override the auto-synthesized task for a single-skill run. Has no effect on multi-skill modes. |
+| `--tasks-file <path>` | JSON `{ "skill-name": "task description" }`. Skills whose names aren't in the file fall back to auto-synthesis. |
+
+**Output flags (optional):**
+
+| Flag | Effect |
+| --- | --- |
+| `--output-dir <path>` | Where the JSON, MD, PDF land. Default: `<cwd>/.claude/agent-verdicts/` (for JSON) + `<cwd>/docs/audits/` (for MD/PDF). |
+| `--no-pdf` | Skip step 8. |
+| `--no-registry-update` | Skip the step-9 prompt (always skip the registry-overrides write). |
+| `--keep-worktrees` | Skip the step-10 cleanup prompt (leave the worktrees in place). |
+
+**Scope resolution rules**
 
 For `--repo`, resolve the repo path by trying:
 1. `D:/koodaamista/<name>/.claude/skills/*/SKILL.md` (consumer layout)
 2. `D:/koodaamista/<name>/skills/*/SKILL.md` (library layout)
 3. Bail if neither matches.
+
+For `--portfolio`, enumerate both globs above with `*` in the repo position and dedupe by `(repo, skill-name)`. Library skills installed into consumer repos via the `mikko-` prefix get merged into their canonical library row (same rule `apply-measurement-overlay.mjs` uses in the mikkonumminen.dev repo).
 
 Skip skills whose YAML frontmatter `description` is a redirect stub (matches the same heuristic `/skill-registry` uses: contains "superseded" / "redirect" / "renamed" / "moved to" / "see also").
 
@@ -55,7 +80,7 @@ For each in-scope skill, write a representative task description. This is the pr
 - Self-bounded (everything needed is in the repo or the prompt; no external lookups)
 - Representative of what the skill exists to do (not a corner case)
 
-Source the task from the skill's `## When to use` examples, the SKILL.md description's example invocations, or the user's `--task <text>` override. When in doubt, mirror the task shape from the May-2026 Spacepotatis calibration (see `docs/audits/spacepotatis-skills-calibration-2026-05-22.md` in the mikkonumminen.dev repo for 13 worked examples).
+Source the task from the skill's `## When to use` examples, the SKILL.md description's example invocations, or the user's `--task <text>` override. When in doubt, mirror the task shape from the May-2026 Spacepotatis calibration — [the report on GitHub](https://github.com/MikkoNumminen/mikkonumminen.dev/blob/master/docs/audits/spacepotatis-skills-calibration-2026-05-22.md) carries 13 worked examples and is fetchable on demand if you don't have a `mikkonumminen.dev` checkout locally.
 
 Optionally accept `--tasks-file <path>` pointing at a JSON `{ "skill-name": "task description" }` — useful for re-running the same calibration with the same prompts.
 
@@ -172,7 +197,7 @@ Write a markdown report to:
 <cwd>/docs/audits/skill-calibration-<YYYY-MM-DD>.md
 ```
 
-Use the May-2026 Spacepotatis calibration report as the template (`docs/audits/spacepotatis-skills-calibration-2026-05-22.md` in the mikkonumminen.dev repo). Required sections:
+Use the May-2026 Spacepotatis calibration report as the template — [view it on GitHub](https://github.com/MikkoNumminen/mikkonumminen.dev/blob/master/docs/audits/spacepotatis-skills-calibration-2026-05-22.md). Required sections:
 
 - tl;dr with aggregate numbers
 - Methodology (3-4 short paragraphs: arms, worktrees, accounting, N=1)

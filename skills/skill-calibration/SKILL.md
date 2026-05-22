@@ -80,9 +80,7 @@ For each in-scope skill, write a representative task description. This is the pr
 - Self-bounded (everything needed is in the repo or the prompt; no external lookups)
 - Representative of what the skill exists to do (not a corner case)
 
-Source the task from the skill's `## When to use` examples, the SKILL.md description's example invocations, or the user's `--task <text>` override. When in doubt, mirror the task shape from the May-2026 Spacepotatis calibration — [the report on GitHub](https://github.com/MikkoNumminen/mikkonumminen.dev/blob/master/docs/audits/spacepotatis-skills-calibration-2026-05-22.md) carries 13 worked examples and is fetchable on demand if you don't have a `mikkonumminen.dev` checkout locally.
-
-Optionally accept `--tasks-file <path>` pointing at a JSON `{ "skill-name": "task description" }` — useful for re-running the same calibration with the same prompts.
+Default source: the skill's `## When to use` examples plus the SKILL.md description's example invocations. When the user passes a task override (see `--task` / `--tasks-file` in step 1's args table), that takes precedence — useful for re-running a calibration with identical prompts. When in doubt about task shape, mirror the May-2026 Spacepotatis calibration — [the report on GitHub](https://github.com/MikkoNumminen/mikkonumminen.dev/blob/master/docs/audits/spacepotatis-skills-calibration-2026-05-22.md) carries 13 worked examples and is fetchable on demand if you don't have a `mikkonumminen.dev` checkout locally.
 
 ### 3. Set up worktrees
 

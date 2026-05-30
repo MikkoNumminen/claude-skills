@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import shutil
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -297,9 +299,11 @@ class CheckTests(unittest.TestCase):
         self.assertEqual(result["status"], "fail")
         self.assertIn("escapes scope", result["message"])
 
-    def test_command_exists_python(self) -> None:
-        # python is required to run these tests, so it must be on PATH.
-        result = self._run({"kind": "command_exists", "command": "python"})
+    def test_command_exists_resolves_current_interpreter(self) -> None:
+        # Use the running interpreter's basename so the test works regardless of
+        # whether the binary is 'python', 'python3', or 'py' on this platform.
+        interpreter = Path(sys.executable).stem
+        result = self._run({"kind": "command_exists", "command": interpreter})
         self.assertEqual(result["status"], "pass")
 
     def test_unknown_kind_errors(self) -> None:
@@ -310,6 +314,103 @@ class CheckTests(unittest.TestCase):
         result = self._run({"kind": "path_exists"})  # no path
         self.assertEqual(result["status"], "error")
         self.assertIn("path", result["message"])
+
+
+class AuditScopeTests(unittest.TestCase):
+    """End-to-end audit + manifest round-trip + removed-skill branch."""
+
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp(prefix="freshness-test-"))
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_first_run_marks_all_new(self) -> None:
+        _make_skill(self.tmp, "alpha")
+        _make_skill(self.tmp, "beta")
+        report = freshness.audit_scope("project", self.tmp)
+        names = {f["name"]: f["status"] for f in report["findings"]}
+        self.assertEqual(names, {"alpha": "new", "beta": "new"})
+
+    def test_baseline_then_clean_audit_is_empty(self) -> None:
+        _make_skill(self.tmp, "alpha")
+        report = freshness.audit_scope("project", self.tmp)
+        freshness.save_manifest(Path(report["manifest_path"]), report["new_manifest"])
+        # Re-audit should find nothing
+        report2 = freshness.audit_scope("project", self.tmp)
+        self.assertEqual(report2["findings"], [])
+
+    def test_removed_skill_surfaces_in_findings(self) -> None:
+        skill_dir = _make_skill(self.tmp, "alpha")
+        report = freshness.audit_scope("project", self.tmp)
+        freshness.save_manifest(Path(report["manifest_path"]), report["new_manifest"])
+        # Delete the skill on disk; manifest still knows about it.
+        shutil.rmtree(skill_dir)
+        report2 = freshness.audit_scope("project", self.tmp)
+        statuses = {f["name"]: f["status"] for f in report2["findings"]}
+        self.assertEqual(statuses, {"alpha": "removed"})
+
+    def test_update_drops_removed_from_manifest(self) -> None:
+        skill_dir = _make_skill(self.tmp, "alpha")
+        report = freshness.audit_scope("project", self.tmp)
+        manifest_path = Path(report["manifest_path"])
+        freshness.save_manifest(manifest_path, report["new_manifest"])
+        shutil.rmtree(skill_dir)
+        # Audit again - new_manifest should NOT include alpha.
+        report2 = freshness.audit_scope("project", self.tmp)
+        self.assertNotIn("alpha", report2["new_manifest"]["skills"])
+
+    def test_changed_skill_with_declared_check_runs_check(self) -> None:
+        _make_skill(
+            self.tmp,
+            "alpha",
+            freshness_block=(
+                '[[check]]\nkind = "path_exists"\npath = "SKILL.md"\nroot = "skill_dir"\n'
+            ),
+        )
+        report = freshness.audit_scope("project", self.tmp)
+        finding = report["findings"][0]
+        self.assertEqual(finding["status"], "new")
+        self.assertTrue(finding["has_criteria"])
+        self.assertEqual(len(finding["checks"]), 1)
+        self.assertEqual(finding["checks"][0]["status"], "pass")
+
+
+@unittest.skipUnless(
+    hasattr(os, "symlink") and sys.platform != "win32",
+    "symlinks require POSIX or Windows admin/dev-mode",
+)
+class SymlinkTests(unittest.TestCase):
+    """POSIX-only: confirm the os.walk(followlinks=False) defense holds."""
+
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp(prefix="freshness-test-"))
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_symlink_cycle_does_not_hang(self) -> None:
+        skill = _make_skill(self.tmp, "alpha")
+        # Create a cycle: alpha/loop -> alpha
+        (skill / "loop").symlink_to(skill, target_is_directory=True)
+        # If we follow the symlink, rglob recurses forever. With followlinks=False
+        # the hash completes in milliseconds.
+        h = freshness.compute_skill_hash(skill)
+        self.assertEqual(len(h), 64)
+
+    def test_symlink_target_change_changes_hash(self) -> None:
+        skill = _make_skill(self.tmp, "alpha")
+        target_a = self.tmp / "target_a"
+        target_a.mkdir()
+        target_b = self.tmp / "target_b"
+        target_b.mkdir()
+        link = skill / "link"
+        link.symlink_to(target_a, target_is_directory=True)
+        h1 = freshness.compute_skill_hash(skill)
+        link.unlink()
+        link.symlink_to(target_b, target_is_directory=True)
+        h2 = freshness.compute_skill_hash(skill)
+        self.assertNotEqual(h1, h2)
 
 
 if __name__ == "__main__":

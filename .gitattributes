@@ -1,0 +1,14 @@
+# Pin text-file line endings to LF regardless of contributor platform.
+# Without this, autocrlf=true on Windows checkouts would store CRLF in working
+# trees and break tools that hash file content (e.g. skills-freshness).
+* text=auto eol=lf
+
+# Binary-safe — never touch.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.mp3 binary
+*.ogg binary
+*.wav binary

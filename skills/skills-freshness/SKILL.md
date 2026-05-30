@@ -12,15 +12,21 @@ NOT for every commit. Cadence: when you suspect a referenced path has moved, aft
 
 # Workflow
 
+## 0. First run — baseline first
+
+Fresh install with no manifest yet? Run `--update` BEFORE the review loop. The script writes the manifest unconditionally and the next invocation starts from "all up to date." Skip step 1; jump to step 5 syntax with `--update`.
+
 ## 1. Run the audit
 
-```
-python ~/.claude/skills/mikko-skills-freshness/skills-freshness.py
-```
+Pick the right script path for how the skill was installed:
 
-Windows / PowerShell equivalent: `python $env:USERPROFILE\.claude\skills\mikko-skills-freshness\skills-freshness.py`
+| Install method | Script path |
+|---|---|
+| `install-mikko.sh` (prefixed) | `python ~/.claude/skills/mikko-skills-freshness/skills-freshness.py` |
+| `install.sh skills-freshness --target user` (unprefixed) | `python ~/.claude/skills/skills-freshness/skills-freshness.py` |
+| Library checkout (no install) | `python skills/skills-freshness/skills-freshness.py` (from claude-skills repo root) |
 
-Library-checkout (no install): `python skills/skills-freshness/skills-freshness.py` from the claude-skills repo root.
+Windows PowerShell — same paths with `$env:USERPROFILE` instead of `~` and `\` separators.
 
 Defaults: both scopes (project under `cwd/.claude/skills/`, global under `~/.claude/skills/`), no manifest write.
 
@@ -51,11 +57,15 @@ Present findings as a short table first. Do not modify any skill file without ex
 
 ## 5. Baseline once accepted
 
+Same path as step 1, plus `--update`:
+
 ```
-python ~/.claude/skills/mikko-skills-freshness/skills-freshness.py --update
+python <path-from-step-1> --update
 ```
 
-Writes the manifest at each scope root. The next audit treats today's state as baseline. (Fresh install with no manifest yet: just run `--update` first — the script writes unconditionally and skips the review loop.)
+Writes the manifest at each scope root. The next audit treats today's state as baseline.
+
+The project manifest is **per-machine**, not committable across mixed-OS teams — a sha256 over CRLF (Windows checkout) differs from LF (Unix checkout) of the same skill. Mixed-OS contributors should gitignore `.claude/skills-freshness.manifest.json`.
 
 # How to declare freshness criteria in a skill
 

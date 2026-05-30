@@ -588,10 +588,21 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     scopes: list[tuple[str, Path]] = []
+    project_root = Path(args.project_root).resolve()
+    home = Path.home().resolve()
     if args.scope in ("project", "both"):
-        scopes.append(("project", Path(args.project_root).resolve()))
+        # If project_root == $HOME, the project scope is the global scope and would
+        # write the same manifest twice. Skip the redundant pass and tell the user.
+        if args.scope == "both" and project_root == home:
+            print(
+                "INFO: project-root resolves to $HOME; skipping project scope "
+                "(global scope covers it)",
+                file=sys.stderr,
+            )
+        else:
+            scopes.append(("project", project_root))
     if args.scope in ("global", "both"):
-        scopes.append(("global", Path.home()))
+        scopes.append(("global", home))
 
     reports = [audit_scope(name, root) for name, root in scopes]
 

@@ -1,7 +1,7 @@
 ---
 name: skills-freshness
 description: Audit Claude Code skills (project + global scopes) for staleness. A pure-stdlib Python script does sha256-based change detection — only new/changed/removed skills are surfaced, unchanged skills are never loaded into context. Skills can declare their own freshness checks under '# Freshness check' as TOML; otherwise the LLM does a generic review (frontmatter, description-vs-behavior, broken refs). Asks before editing anything. Use whenever the user says "are my skills up to date", "audit my skills", "check for skill drift", or invokes `/mikko-skills-freshness`.
-barney: Tells you which Claude Code skills haven't been touched-and-verified since your last audit, without re-reading the ones that haven't changed. Run quarterly or after a big refactor.
+barney: Tells you which of your Claude Code skills have changed since you last verified them — without re-reading the ones that haven't. Run quarterly.
 ---
 
 # When to use

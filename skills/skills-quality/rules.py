@@ -307,9 +307,8 @@ def rule_unlimited_read_in_procedure(c: SkillContent) -> Finding | None:
             "medium",
             f"{total} 'read each/all/every X' instruction(s) with no nearby limit guidance "
             "(limit=N, first N lines, frontmatter-only, 10-second skim). Capable models "
-            "follow the procedure literally and pull large files in full - the local-computation "
-            "A/B study saw skills-freshness/haiku AFTER read 233,876 chars vs BEFORE's 116,731 "
-            "from exactly this pattern.",
+            "follow the procedure literally and pull large files in full - observed to "
+            "roughly double read volume vs an improvised scan on the same task.",
         )
     return None
 
@@ -324,9 +323,8 @@ def rule_uncapped_followup(c: SkillContent) -> Finding | None:
         return (
             "medium",
             f"{total} 'verify/check/trace each X' instruction(s) with no cap (max N, "
-            "stop after N, at most N, one ls per finding). Capable models will spelunk - "
-            "skills-freshness/opus AFTER spent 4 extra Bash calls chasing path refs into a "
-            "source repo, costing +28K tokens (-21% sign flip).",
+            "stop after N, at most N, one ls per finding). Capable models spelunk into "
+            "adjacent repos when not bounded - observed to sign-flip the optimization.",
         )
     return None
 
@@ -337,10 +335,10 @@ def rule_batch_invitation(c: SkillContent) -> Finding | None:
     if total >= 1:
         return (
             "medium",
-            f"{total} 'in parallel' instruction(s) with no 'single batch' constraint. Models "
-            "may stage reads into multiple batches, creating extra cache checkpoints - "
-            "skills-quality/sonnet AFTER staged 6+8 reads and paid +27K cache_creation tokens "
-            "(-12% sign flip).",
+            f"{total} 'in parallel' instruction(s) with no 'single batch' / 'one batch' / "
+            "'all at once' constraint nearby. Models may stage parallel reads into multiple "
+            "batches, creating extra cache_creation checkpoints - observed to sign-flip "
+            "the optimization.",
         )
     return None
 

@@ -314,6 +314,26 @@ class RuleTests(unittest.TestCase):
         c = self._content("bi_smart", body=body)
         self.assertIsNone(rules.rule_batch_invitation(c))
 
+    def test_guard_before_imperative_is_invisible_forward_window(self) -> None:
+        # Pins the documented forward-only window behavior in
+        # _matches_without_nearby_guard. A caveat written BEFORE the
+        # imperative must NOT satisfy the guard — only guidance inline
+        # or downstream counts. Future maintainers who try to "fix" the
+        # forward-window to be bidirectional must update this test, by
+        # design.
+        body = (
+            "---\nname: x\ndescription: y\n---\n\n"
+            "Use limit=80 when needed. Read each SKILL.md and check the "
+            "frontmatter.\n"
+        )
+        # 'limit=80' lands BEFORE 'read each SKILL.md', so the guard
+        # check inside the forward window finds no LIMIT_GUARD hit — rule
+        # must fire.
+        c = self._content("fw_before", body=body)
+        result = rules.rule_unlimited_read_in_procedure(c)
+        self.assertIsNotNone(result)
+        self.assertEqual(result[0], "medium")
+
 
 # ---------- ruleset hash tests ----------
 

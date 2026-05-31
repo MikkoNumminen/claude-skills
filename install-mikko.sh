@@ -97,6 +97,32 @@ for skill_dir in "${SKILLS_ROOT}"/*/; do
         rm -f "${dest}/SKILL.md.bak"
     fi
 
+    # Copy any skills/_lib/<name>.py files the skill imports as a sibling.
+    # Each skill in the source repo imports shared lib modules from
+    # ../_lib/<name>.py at dev time; after install (copy mode) the destination
+    # is flat, so we copy on-demand based on what the skill's scripts import.
+    if [[ -d "${SKILLS_ROOT}/_lib" ]]; then
+        for lib_file in "${SKILLS_ROOT}/_lib"/*.py; do
+            [[ -f "${lib_file}" ]] || continue
+            lib_module="$(basename "${lib_file}" .py)"
+            # Defensive: lib names get interpolated into a grep -E pattern.
+            # Refuse anything that isn't a pure Python identifier so a future
+            # name with regex metachars (`.`, `+`, etc.) can't silently miscopy.
+            if [[ ! "${lib_module}" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+                echo "WARN: skipping _lib/${lib_module}.py - name is not a pure Python identifier" >&2
+                continue
+            fi
+            # grep skill scripts for an import of the lib name. Anchored to
+            # start-of-line (with optional leading whitespace) so commented
+            # references like `# import skills_audit_lib was the old way` don't
+            # cause spurious copies.
+            if grep -qrE "^[[:space:]]*(import|from)[[:space:]]+${lib_module}\b" "${dest}" \
+                --include="*.py" --include="*.mjs" --include="*.js" 2>/dev/null; then
+                cp "${lib_file}" "${dest}/"
+            fi
+        done
+    fi
+
     echo "installed: ${dest}"
     count=$((count + 1))
 done

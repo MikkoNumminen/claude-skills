@@ -129,8 +129,8 @@ upgrade or downgrade severity per finding when context warrants.
   inconsistent docstring style (some `"""one line"""`, some `"""
   multiline\n"""` for similar functions).
 - **Why.** Suggests the file was edited in passes that did not
-  read each other. Slows readers down and signals further drift
-  elsewhere.
+  share context with each other. Slows readers down and signals
+  further drift elsewhere.
 - **Smell example.** Same module: `path = os.path.join(root, "data")`
   on line 12, `out = Path(root) / "out"` on line 28, `tmp =
   f"{root}/tmp"` on line 41 — three idioms, same operation.

@@ -1,7 +1,7 @@
 ---
 name: skill-calibration
 description: A/B-test a Claude Code skill against an unstructured baseline to measure the actual token savings it provides. Runs one Sonnet sub-agent per arm per skill — arm A solves the task cold without reading SKILL.md, arm B reads SKILL.md and follows the procedure exactly. Both arms operate in fresh sandboxed worktrees so they don't collide. Token usage comes from the harness's per-sub-agent `usage.total_tokens` (same accounting convention as `/mikko-skill-usage`). Can measure a single skill, several specific skills, or every skill in a repo in one parallel batch. Emits a JSON measurement file plus a markdown report plus a portrait-A4 PDF. Replaces the editorial "saved" guesses in skills-registry PDFs with real numbers. Use whenever the user says "calibrate this skill", "measure tokens saved", "A/B-test the skill", "how much does X actually save", or before any public claim about a skill's savings.
-barney: A/B-tests a skill (or many in parallel) — solves the same task twice, once cold and once with the skill, then reports who used more tokens. Real measurement, not the 3× heuristic.
+barney: A/B-tests a skill (or many concurrently) — solves the same task twice, once cold and once with the skill, then reports who used more tokens. Real measurement, not the 3× heuristic.
 ---
 
 # Skill calibration
@@ -93,9 +93,9 @@ Branch name pattern: `calib/<skill>-A` and `calib/<skill>-B`. Both branches thro
 
 If a worktree already exists at that path (from a prior calibration), bail and ask the user to clean up first. Do not silently overwrite.
 
-### 4. Dispatch sub-agents in parallel
+### 4. Dispatch sub-agents in parallel (single batch — one message, don't stage)
 
-In a single message, dispatch 2 × N Sonnet sub-agents — one per arm per skill. Use `subagent_type: "general-purpose"`, `model: "sonnet"`, `run_in_background: true` so the main thread isn't blocked.
+In a single batch (one message), dispatch 2 × N Sonnet sub-agents — one per arm per skill. Use `subagent_type: "general-purpose"`, `model: "sonnet"`, `run_in_background: true` so the main thread isn't blocked.
 
 **Arm A prompt template** (substitute `<WORKTREE>`, `<TASK>`):
 
@@ -134,7 +134,7 @@ You're the SKILL arm of a skill-calibration A/B test. Follow the skill exactly.
 
 For library-layout repos (`claude-skills`), substitute `skills/<SKILL>/SKILL.md` instead of `.claude/skills/<SKILL>/SKILL.md`.
 
-The harness queues `run_in_background: true` sub-agents — depending on its concurrency limit, all 2N may not run truly in parallel, but they will all complete without blocking the main thread.
+The harness queues `run_in_background: true` sub-agents — depending on its concurrency limit, all 2N may not run truly concurrently, but they will all complete without blocking the main thread.
 
 ### 5. Capture token usage
 

@@ -69,7 +69,7 @@ Writes the manifest at each scope root. The next audit treats today's state as b
 
 Lives in `rules.py` next to this script. Each rule's own `message` is self-describing in the audit output — no per-rule cheat-sheet needed here. The single non-obvious property: **editing rules.py re-keys every skill**, because the manifest entry's key is `(skill_hash + sha256(rules.py))`. A rule change forces a full re-review next audit.
 
-`install.sh skills-quality --target user` (symlink mode) keeps reading the source `rules.py` and `_lib/`; if the source tree moves or you delete it, the skill breaks. `install-mikko.sh` (copy mode) bundles a sibling copy of each.
+**`install.sh` (symlink mode)** keeps reading the source `rules.py` and `_lib/`. If the source tree moves or you delete it, the symlinks dangle and the skill silently breaks on next invocation — re-install from a fresh checkout. **`install-mikko.sh` (copy mode)** bundles sibling copies; this makes the *installed* `rules.py` the authoritative source for the hash, so editing the installed copy re-keys everyone locally (handy for tuning thresholds without forking the source). `git pull` of the source repo won't propagate to copy-mode installs without re-running `install-mikko.sh`.
 
 # Freshness check
 

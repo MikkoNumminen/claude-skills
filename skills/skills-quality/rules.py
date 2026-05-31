@@ -126,10 +126,13 @@ def build_content(skill_dir: Path) -> SkillContent | None:
     code_fences = len(CODE_FENCE_RE.findall(text))
     # os.walk(followlinks=False) so a symlink-to-/usr can't false-positive a
     # companion script. Mirror of the lib's compute_skill_hash defense.
+    # Once any script is found we short-circuit — the boolean is all we need —
+    # so deeper subdirs may go un-walked. Acceptable: the symlink guard only
+    # needs to defend against the first symlinked subdir's contents leaking
+    # through, and that's gated above before any descent.
     has_script = False
     for root, dirs, files in os.walk(skill_dir, followlinks=False):
         root_p = Path(root)
-        # Skip symlinked subdirs - same guard the lib uses.
         dirs[:] = [d for d in dirs if not (root_p / d).is_symlink()]
         for fname in files:
             full = root_p / fname
@@ -247,9 +250,18 @@ def run_rules(content: SkillContent) -> list[dict[str, str]]:
     return findings
 
 
-def compute_ruleset_hash() -> str:
-    """sha256 of THIS file's bytes. Embedded in each manifest entry's key, so
-    any edit (even a comment) bumps the ruleset hash and forces re-review."""
+def compute_ruleset_hash(rules_path: Path | None = None) -> str:
+    """sha256 of the rules file's bytes. Embedded in each manifest entry's
+    key, so any edit (even a comment) bumps the ruleset hash and forces
+    re-review.
+
+    Default: hashes THIS file's bytes via __file__. Tests pass an explicit
+    path to a temp copy so they can assert the function actually changes
+    output when the rules content changes (rather than only pinning a
+    synthetic hash through audit_scope).
+    """
     import hashlib
 
-    return hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+    if rules_path is None:
+        rules_path = Path(__file__)
+    return hashlib.sha256(rules_path.read_bytes()).hexdigest()

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -183,6 +184,12 @@ class RuleTests(unittest.TestCase):
 
 
 class RulesetHashTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp(prefix="quality-test-"))
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
     def test_hash_is_stable_within_run(self) -> None:
         self.assertEqual(rules.compute_ruleset_hash(), rules.compute_ruleset_hash())
 
@@ -190,6 +197,25 @@ class RulesetHashTests(unittest.TestCase):
         h = rules.compute_ruleset_hash()
         self.assertEqual(len(h), 64)
         int(h, 16)  # raises ValueError if not hex
+
+    def test_hash_changes_when_rules_file_changes(self) -> None:
+        # End-to-end pin: a real edit to a rules file produces a different
+        # hash. Complements test_ruleset_change_re_surfaces_unchanged_skill,
+        # which uses a synthetic hash and so doesn't exercise the function.
+        p1 = self.tmp / "rules_a.py"
+        p2 = self.tmp / "rules_b.py"
+        p1.write_text("# version 1\nRULES = []\n", encoding="utf-8")
+        p2.write_text("# version 2\nRULES = []\n", encoding="utf-8")
+        self.assertNotEqual(
+            rules.compute_ruleset_hash(p1),
+            rules.compute_ruleset_hash(p2),
+        )
+        # And same content -> same hash.
+        p2.write_text("# version 1\nRULES = []\n", encoding="utf-8")
+        self.assertEqual(
+            rules.compute_ruleset_hash(p1),
+            rules.compute_ruleset_hash(p2),
+        )
 
 
 # ---------- audit_scope integration tests ----------
@@ -315,6 +341,105 @@ class ManifestTests(unittest.TestCase):
         )
         m = skills_quality.load_manifest(path)
         self.assertEqual(set(m["skills"].keys()), {"good"})
+
+
+@unittest.skipUnless(
+    hasattr(os, "symlink") and sys.platform != "win32",
+    "symlinks require POSIX or Windows admin/dev-mode",
+)
+class SymlinkDefenseTests(unittest.TestCase):
+    """POSIX-only: rules.build_content must not follow symlinked dirs.
+
+    Mirrors the equivalent SymlinkTests in skills-freshness — the script's
+    has_companion_script logic uses os.walk(followlinks=False), and a
+    symlink to a tree containing a .py file must not flip has_script to
+    True.
+    """
+
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp(prefix="quality-test-"))
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_symlinked_dir_with_script_does_not_set_has_script(self) -> None:
+        # External tree containing a .py file - if the walk followed
+        # symlinked dirs, has_script would flip True.
+        external = self.tmp / "external"
+        external.mkdir()
+        (external / "intruder.py").write_text("# imported from outside\n", encoding="utf-8")
+
+        skill = _make_skill(self.tmp, "no_real_script")
+        (skill / "link_to_external").symlink_to(external, target_is_directory=True)
+
+        c = rules.build_content(skill)
+        assert c is not None
+        self.assertFalse(c.has_script if hasattr(c, "has_script") else c.has_companion_script)
+
+    def test_symlinked_dir_cycle_does_not_hang(self) -> None:
+        skill = _make_skill(self.tmp, "cyclic")
+        (skill / "loop").symlink_to(skill, target_is_directory=True)
+        c = rules.build_content(skill)
+        assert c is not None
+        # If followlinks were True this would infinite-loop or raise.
+        self.assertFalse(c.has_companion_script)
+
+
+class LibDiscoveryTests(unittest.TestCase):
+    """Verify the script's preamble can locate skills_audit_lib via either
+    candidate (sibling install vs source-tree layout) by physically setting
+    up each layout in a tempdir and importing the script in a subprocess.
+
+    Subprocess isolation matters: the test process already has the lib
+    imported and the path on sys.path from skills-quality's own preamble.
+    """
+
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp(prefix="quality-test-"))
+        # Source files we'll vendor into each layout.
+        self.lib_src = _SKILL_ROOT.parent / "_lib" / "skills_audit_lib.py"
+        self.rules_src = _SKILL_ROOT / "rules.py"
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _run_script(self, script_path: Path) -> tuple[int, str, str]:
+        import subprocess
+
+        proc = subprocess.run(
+            [sys.executable, str(script_path), "--scope", "global", "--json"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        return proc.returncode, proc.stdout, proc.stderr
+
+    def test_sibling_lib_layout_imports(self) -> None:
+        # install-mikko.sh (copy) layout: lib + rules + script all flat siblings.
+        flat = self.tmp / "mikko-skills-quality"
+        flat.mkdir()
+        shutil.copy(self.lib_src, flat / "skills_audit_lib.py")
+        shutil.copy(self.rules_src, flat / "rules.py")
+        shutil.copy(_SCRIPT, flat / "skills-quality.py")
+        rc, _out, err = self._run_script(flat / "skills-quality.py")
+        self.assertNotIn("ImportError", err, msg=err)
+        # rc may be 0 or 1 depending on global skill state; both indicate the
+        # script ran past its imports.
+        self.assertIn(rc, (0, 1), msg=f"rc={rc} stderr={err}")
+
+    def test_parent_lib_layout_imports(self) -> None:
+        # install.sh (symlink) / source-repo layout: lib at ../_lib/ relative
+        # to the script.
+        skill_dir = self.tmp / "skills" / "skills-quality"
+        lib_dir = self.tmp / "skills" / "_lib"
+        skill_dir.mkdir(parents=True)
+        lib_dir.mkdir(parents=True)
+        shutil.copy(self.lib_src, lib_dir / "skills_audit_lib.py")
+        shutil.copy(self.rules_src, skill_dir / "rules.py")
+        shutil.copy(_SCRIPT, skill_dir / "skills-quality.py")
+        rc, _out, err = self._run_script(skill_dir / "skills-quality.py")
+        self.assertNotIn("ImportError", err, msg=err)
+        self.assertIn(rc, (0, 1), msg=f"rc={rc} stderr={err}")
 
 
 if __name__ == "__main__":

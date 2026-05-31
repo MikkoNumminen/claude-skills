@@ -41,15 +41,14 @@ except ImportError:
     sys.exit(2)
 
 
-# Locate the shared skills_audit_lib module. The lib is the single source of
-# truth for hashing skill dirs + JSON IO; both skills-freshness and
-# skills-quality depend on it. The lib lives at:
-#   - Source repo: skills/_lib/skills_audit_lib.py
-#   - Installed (copy mode): ~/.claude/skills/<prefix><name>/skills_audit_lib.py
-#     (install-mikko.sh copies it next to the script)
-#   - Installed (symlink mode): same as source via __file__ resolution
+# Locate the shared skills_audit_lib. Path.resolve() follows symlinks so
+# both install modes work:
+#   - install-mikko.sh (copy): lib lives as a sibling of this script.
+#   - install.sh (symlink) + source-repo direct run: __file__ resolves into
+#     the source tree, where ../_lib/ holds the lib.
+# (Kept in lockstep with skills-quality.py's identical preamble.)
 _HERE = Path(__file__).resolve().parent
-for _candidate in (_HERE, _HERE / "_lib", _HERE.parent / "_lib", _HERE.parent.parent / "_lib"):
+for _candidate in (_HERE, _HERE.parent / "_lib"):
     if (_candidate / "skills_audit_lib.py").is_file():
         sys.path.insert(0, str(_candidate))
         break

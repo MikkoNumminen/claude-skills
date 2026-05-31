@@ -308,8 +308,8 @@ def rule_unlimited_read_in_procedure(c: SkillContent) -> Finding | None:
             f"{total} 'read each/all/every X' instruction(s) with no nearby limit guidance "
             "(limit=N, first N lines, frontmatter-only, 10-second skim). Capable models "
             "follow the procedure literally and pull large files in full - observed to "
-            "multiply read volume 2x or more in at least one A/B cell vs the same task "
-            "approached cold.",
+            "multiply read volume 2x or more in at least one A/B cell vs an improvised "
+            "scan on the same task.",
         )
     return None
 

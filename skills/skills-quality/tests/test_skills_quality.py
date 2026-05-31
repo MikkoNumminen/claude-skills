@@ -319,9 +319,7 @@ class RuleTests(unittest.TestCase):
         # _matches_without_nearby_guard. A caveat written BEFORE the
         # imperative must NOT satisfy the guard — only guidance inline
         # or downstream counts. If someone changes the helper to look
-        # bidirectionally, this test will break — and that's the point:
-        # the breakage is a forcing function for an explicit decision,
-        # not an accident to silently fix.
+        # bidirectionally, this test will break — and that's the point.
         body = (
             "---\nname: x\ndescription: y\n---\n\n"
             "Use limit=80 when needed. Read each SKILL.md and check the "

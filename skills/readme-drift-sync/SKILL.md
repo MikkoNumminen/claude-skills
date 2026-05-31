@@ -70,7 +70,7 @@ Five axes, priority order. Each has a `Pattern`, a `How to detect`, a `Severity 
 
 - **Pattern.** Skill directories exist that aren't in the README's skill list, or vice versa. Specific to repos whose README enumerates the skills they ship.
 - **How to detect.**
-  1. `Glob` BOTH `skills/*/SKILL.md` (the layout this library uses at repo root) AND `.claude/skills/*/SKILL.md` (the Claude Code default for consumer repos). Deduplicate by basename — a skill can only live in one of the two locations in a given repo, but check both because conventions vary. Read each match's frontmatter `name` field.
+  1. `Glob` BOTH `skills/*/SKILL.md` (the layout this library uses at repo root) AND `.claude/skills/*/SKILL.md` (the Claude Code default for consumer repos). Deduplicate by basename — a skill can only live in one of the two locations in a given repo, but check both because conventions vary. Read each match's frontmatter `name` field (use `limit=5` — only the first few lines are needed, no deep read).
   2. `Grep` the README for those names. If the README has a section like "## Skills", "## What's in here", or "## What's in this repo" enumerating skills, compare the README's list against the directory listing.
   3. If the README has no skill-list section at all, this axis is **N/A** — don't invent one.
 - **Severity default.** Stale (README names a skill that no longer exists): **major**. Missing (skill exists but unlisted): **minor**.

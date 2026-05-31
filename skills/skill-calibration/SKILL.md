@@ -93,7 +93,7 @@ Branch name pattern: `calib/<skill>-A` and `calib/<skill>-B`. Both branches thro
 
 If a worktree already exists at that path (from a prior calibration), bail and ask the user to clean up first. Do not silently overwrite.
 
-### 4. Dispatch sub-agents in parallel (single batch — one message, don't stage)
+### 4. Dispatch sub-agents in parallel
 
 In a single batch (one message), dispatch 2 × N Sonnet sub-agents — one per arm per skill. Use `subagent_type: "general-purpose"`, `model: "sonnet"`, `run_in_background: true` so the main thread isn't blocked.
 

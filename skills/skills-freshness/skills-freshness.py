@@ -19,9 +19,7 @@ Requires Python 3.11+ (tomllib).
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
-import os
 import re
 import shutil
 import sys
@@ -43,124 +41,52 @@ except ImportError:
     sys.exit(2)
 
 
-SKILL_FILE = "SKILL.md"
+# Locate the shared skills_audit_lib module. The lib is the single source of
+# truth for hashing skill dirs + JSON IO; both skills-freshness and
+# skills-quality depend on it. The lib lives at:
+#   - Source repo: skills/_lib/skills_audit_lib.py
+#   - Installed (copy mode): ~/.claude/skills/<prefix><name>/skills_audit_lib.py
+#     (install-mikko.sh copies it next to the script)
+#   - Installed (symlink mode): same as source via __file__ resolution
+_HERE = Path(__file__).resolve().parent
+for _candidate in (_HERE, _HERE / "_lib", _HERE.parent / "_lib", _HERE.parent.parent / "_lib"):
+    if (_candidate / "skills_audit_lib.py").is_file():
+        sys.path.insert(0, str(_candidate))
+        break
+else:
+    raise ImportError(
+        "skills_audit_lib.py not found next to script or in ../_lib/ "
+        "(install-mikko.sh should copy it as a sibling)"
+    )
+
+from skills_audit_lib import (  # noqa: E402
+    MAX_FILE_BYTES,
+    SKILL_FILE,
+    compute_skill_hash,
+    find_skill_dirs,
+    load_json_file,
+    save_json_file_atomic,
+)
+
+
 MANIFEST_FILENAME = "skills-freshness.manifest.json"
 SCRIPT_VERSION = 1
-MAX_FILE_BYTES = 5 * 1024 * 1024  # skip files >5 MB to keep hashing cheap
 MAX_PATTERN_SCAN_BYTES = 1_000_000  # only scan first 1 MB of any file for regex
 
 
-# ---------- change detection ----------
-
-
-def find_skill_dirs(scope_root: Path) -> list[Path]:
-    """Return sorted skill directories (each containing SKILL.md)."""
-    skills_dir = scope_root / ".claude" / "skills"
-    if not skills_dir.is_dir():
-        return []
-    out: list[Path] = []
-    for d in sorted(skills_dir.iterdir(), key=lambda p: p.name):
-        if d.is_dir() and (d / SKILL_FILE).is_file():
-            out.append(d)
-    return out
-
-
-def compute_skill_hash(skill_dir: Path) -> str:
-    """sha256 of (sorted relative posix path + NUL + file content + NUL) per entry.
-
-    Uses os.walk(followlinks=False) - Path.rglob follows symlinked directories on
-    Python 3.11/3.12, which would cycle on symlink loops and double-count any
-    symlink-to-sibling-dir layout.
-
-    Hashing (not mtime) - git checkouts reset mtimes and would produce false
-    'changed' results.
-
-    Oversized files (>5 MB) get a content fingerprint (first 64 KB + last 64 KB
-    + size), not bare size - a same-size content edit must still change the hash.
-    """
-    h = hashlib.sha256()
-    entries: list[tuple[str, str, Path]] = []  # (rel_posix_path, kind, abs_path)
-    try:
-        for root, dirs, files in os.walk(skill_dir, followlinks=False):
-            root_p = Path(root)
-            # Record symlinked dirs as link entries; prune so os.walk doesn't descend.
-            keep: list[str] = []
-            for d in dirs:
-                full = root_p / d
-                if full.is_symlink():
-                    rel = full.relative_to(skill_dir).as_posix()
-                    entries.append((rel, "symlink", full))
-                else:
-                    keep.append(d)
-            dirs[:] = keep
-            for fname in files:
-                full = root_p / fname
-                rel = full.relative_to(skill_dir).as_posix()
-                if full.is_symlink():
-                    entries.append((rel, "symlink", full))
-                else:
-                    entries.append((rel, "file", full))
-    except OSError as e:
-        # Hash the walk error so the audit doesn't crash but does flip 'changed'
-        # when permissions/structure first break.
-        h.update(b"<walk-error:")
-        h.update(str(e.errno or 0).encode("ascii"))
-        h.update(b">\x00")
-
-    entries.sort(key=lambda x: x[0])
-    for rel, kind, p in entries:
-        h.update(rel.encode("utf-8"))
-        h.update(b"\x00")
-        try:
-            if kind == "symlink":
-                # Hash the link target string so retargets register, without following.
-                target = str(p.readlink())
-                h.update(b"SYMLINK:")
-                h.update(target.encode("utf-8"))
-            else:
-                size = p.stat().st_size
-                if size > MAX_FILE_BYTES:
-                    # Cheap fingerprint: first + last + size. Catches in-place
-                    # content edits without paying full-hash cost on bundled assets.
-                    h.update(b"OVERSIZED:")
-                    h.update(str(size).encode("ascii"))
-                    h.update(b":")
-                    with p.open("rb") as fh:
-                        h.update(fh.read(65536))
-                        if size > 2 * 65536:
-                            fh.seek(-65536, os.SEEK_END)
-                            h.update(fh.read(65536))
-                else:
-                    with p.open("rb") as fh:
-                        for chunk in iter(lambda: fh.read(65536), b""):
-                            h.update(chunk)
-        except OSError as e:
-            # errno-only - the rendered message can drift between runs (locale,
-            # kernel version) and produce spurious 'changed' on stable failures.
-            h.update(b"<unreadable:")
-            h.update(str(e.errno or 0).encode("ascii"))
-            h.update(b">")
-        h.update(b"\x00")
-    return h.hexdigest()
+# ---------- manifest IO (schema layered over the generic JSON helpers) ----------
 
 
 def load_manifest(manifest_path: Path) -> dict[str, Any]:
-    if not manifest_path.is_file():
-        return {"version": SCRIPT_VERSION, "skills": {}}
-    try:
-        raw = manifest_path.read_text(encoding="utf-8", errors="replace")
-        data = json.loads(raw)
-    except (json.JSONDecodeError, OSError) as e:
-        # Soft-handle so --update can overwrite a corrupt manifest with a fresh
-        # baseline instead of forcing the user to delete the file by hand.
-        print(
-            f"WARN: corrupt manifest {manifest_path}: {e} - treating as empty",
-            file=sys.stderr,
-        )
-        return {"version": SCRIPT_VERSION, "skills": {}}
+    """Read the freshness manifest, validating per-entry shape.
+
+    Generic IO + soft-handle is in skills_audit_lib.load_json_file; this layer
+    enforces the {"version": int, "skills": {name: {"hash": str}}} shape.
+    """
+    default: dict[str, Any] = {"version": SCRIPT_VERSION, "skills": {}}
+    data = load_json_file(manifest_path, default)
     if not isinstance(data, dict) or not isinstance(data.get("skills"), dict):
-        return {"version": SCRIPT_VERSION, "skills": {}}
-    # Filter per-entry garbage so audit_scope's .get('hash') never trips on a non-dict.
+        return default
     skills = {
         k: v
         for k, v in data["skills"].items()
@@ -170,13 +96,7 @@ def load_manifest(manifest_path: Path) -> dict[str, Any]:
 
 
 def save_manifest(manifest_path: Path, manifest: dict[str, Any]) -> None:
-    manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    # Atomic replace to avoid leaving a half-written file if interrupted.
-    tmp = manifest_path.with_suffix(manifest_path.suffix + ".tmp")
-    tmp.write_text(
-        json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
-    tmp.replace(manifest_path)
+    save_json_file_atomic(manifest_path, manifest)
 
 
 # ---------- freshness-criteria parsing ----------

@@ -17,6 +17,7 @@ This repo started life as `claude-audit-skill` housing a single audit skill. It 
 | [`session-cost`](skills/session-cost/SKILL.md)                              | Measure the token cost of one Claude Code session — main thread plus every sub-agent it dispatched. Same accounting convention as `skill-usage` (input + output + cache-creation; cache-read excluded; deduped by `requestId`), different slice: by who-spent-it within one conversation, instead of by skill name across the portfolio. Use it to retro a PR or a complex feature. Pure JSONL parser, zero model-token cost. | shipped   |
 | [`skill-calibration`](skills/skill-calibration/SKILL.md)                    | A/B-test a skill against an unstructured baseline to measure actual token savings. Dispatches two Sonnet sub-agents per skill in sandboxed worktrees — arm A solves the task cold without reading SKILL.md, arm B follows the skill. Token counts come from the harness's per-sub-agent `usage.total_tokens` (same convention as `skill-usage`). Handles one skill or a whole repo in parallel. Emits a dated JSON + markdown report + portrait-A4 PDF. Reference implementation: May-2026 Spacepotatis calibration of 13 skills measured ~22% net savings vs the 67% the heuristic implies. | shipped   |
 | [`skills-freshness`](skills/skills-freshness/SKILL.md)                      | sha256-based staleness audit for installed skills, project + global scopes. Only new / changed / removed skills are surfaced; unchanged skills never enter LLM context. Skills can opt in to declared TOML checks under `# Freshness check`; otherwise the LLM does a generic frontmatter + description + broken-ref pass. Pure stdlib, stdlib-only tests. | shipped   |
+| [`skills-quality`](skills/skills-quality/SKILL.md)                          | Token-economy audit. Pre-pass scans each skill for smells (long imperative prose with no companion script, missing frontmatter, oversized SKILL.md, excessive code blocks). LLM review only fires for skills the pre-pass flagged OR that changed since the last baseline. Manifest key is (skill_hash + ruleset_hash), so editing the rules re-enters every skill for review. Shares change-detection with `skills-freshness` via `skills/_lib/skills_audit_lib.py`. | shipped   |
 | [`mikko-help`](skills/mikko-help/SKILL.md)                                  | Personal helper: lists every installed `mikko-*` skill with its one-line description, and flags new skills in the source repo that haven't been installed yet. Solves "I know I have a skill for this but can't remember which one." Useful as-is for anyone adopting the `mikko-` namespace; fork-friendly otherwise (search-and-replace the prefix to brand for yourself). | shipped   |
 | [`mikko-install`](skills/mikko-install/SKILL.md)                            | Personal installer: wraps `install-mikko.sh` and `install.sh` behind a slash command so the install loop is reachable from inside any Claude Code session. Install all, install one, update after `git pull`, list what's new, or uninstall — without leaving the chat to find the repo and run bash. Bootstraps via `install-mikko.sh` once at machine setup, then steady-state from there. | shipped   |
 | [`mikko-audit-suite`](skills/mikko-audit-suite/SKILL.md)                    | Personal orchestrator: detects the codebase shape (language, framework, security surface) and runs every relevant `mikko-*` audit skill in a sensible order, producing one index document that links to each audit's report. Confirms once with the human before dispatching. Expensive (sum of every dispatched audit, typically 100–500K tokens) — invoke before milestones, not daily. | shipped   |
@@ -116,6 +117,8 @@ What's **not** in this repo: a marketplace, a registry, or any kind of "ratings"
 │   ├── METHODOLOGY.md             the audit skill's design rationale
 │   └── SKILLS.md                  per-skill token-economics catalog
 └── skills/
+    ├── _lib/                      shared helpers (not a skill — no SKILL.md, installer skips it)
+    │   └── skills_audit_lib.py    sha256 + manifest IO used by skills-freshness + skills-quality
     ├── audit/
     │   ├── SKILL.md               the meta-architecture audit recipe
     │   └── evals/                 sample inputs and gold outputs
@@ -131,9 +134,16 @@ What's **not** in this repo: a marketplace, a registry, or any kind of "ratings"
     │   ├── SKILL.md               sha256-based staleness audit
     │   ├── skills-freshness.py    companion script: change-detection + check runner
     │   └── tests/                 stdlib-only unittest suite
+    ├── skills-quality/
+    │   ├── SKILL.md               token-economy audit (do skills push work onto the LLM?)
+    │   ├── skills-quality.py      companion script: two-stage audit orchestration
+    │   ├── rules.py               the ruleset (its sha256 is folded into the manifest key)
+    │   └── tests/                 stdlib-only unittest suite
     └── mikko-help/
         └── SKILL.md               personal-namespace discoverability helper
 ```
+
+`install-mikko.sh` copies any `skills/_lib/<name>.py` next to each installed skill that imports it — the shared lib lives in one place in source, gets vendored into each skill's destination directory at install time so the installed skill is self-contained.
 
 ## License
 

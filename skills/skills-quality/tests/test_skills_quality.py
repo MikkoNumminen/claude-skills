@@ -289,20 +289,27 @@ class RuleTests(unittest.TestCase):
         # CAP_GUARD_RE char class must accept both. Earlier code review
         # caught a version where the class was three copies of straight
         # ASCII — silently dropping smart-quote text on the floor.
+        #
+        # The body deliberately contains ONLY the smart-quote-guard ("don’t
+        # chase") — no `stop after N` / `at most N` / `one ls per` co-guard
+        # — so this test fails the moment the smart-quote alternation
+        # regresses. A prior draft stacked a second guard alongside the
+        # smart-quote one and silently passed via the unrelated alternative.
         body = (
             "---\nname: x\ndescription: y\n---\n\n"
-            "Verify each cited path — don’t chase into source repos, "
-            "stop after 3 traces.\n"
+            "Verify each cited path — don’t chase into source repos.\n"
         )
         c = self._content("uc_smart", body=body)
         self.assertIsNone(rules.rule_uncapped_followup(c))
 
     def test_batch_invitation_passes_with_smart_apostrophe_guard(self) -> None:
-        # Same regression for BATCH_GUARD_RE's don['’]t alternation.
+        # Same regression for BATCH_GUARD_RE's don['’]t alternation. As
+        # above, body uses ONLY the smart-quote guard — no `single batch`
+        # / `one batch` / `all at once` co-guard — so the test exercises
+        # the smart-quote path and only the smart-quote path.
         body = (
             "---\nname: x\ndescription: y\n---\n\n"
-            "Read the flagged files in parallel — don’t stage; do it "
-            "all at once.\n"
+            "Read the flagged files in parallel — don’t stage.\n"
         )
         c = self._content("bi_smart", body=body)
         self.assertIsNone(rules.rule_batch_invitation(c))

@@ -179,6 +179,160 @@ class RuleTests(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertEqual(result[0], "medium")
 
+    # ---- cost-trap rules (added 2026-05-31) ----
+
+    def test_unlimited_read_fires_on_plain_imperative(self) -> None:
+        body = (
+            "---\nname: x\ndescription: y\n---\n\n"
+            "# Workflow\n\n## Step 1\n\nRead each SKILL.md and check the frontmatter.\n"
+        )
+        c = self._content("ur", body=body)
+        result = rules.rule_unlimited_read_in_procedure(c)
+        self.assertIsNotNone(result)
+        self.assertEqual(result[0], "medium")
+
+    def test_unlimited_read_passes_with_limit_guard_nearby(self) -> None:
+        body = (
+            "---\nname: x\ndescription: y\n---\n\n"
+            "# Workflow\n\nRead each SKILL.md with `limit=80` to skim only the frontmatter.\n"
+        )
+        c = self._content("ur2", body=body)
+        self.assertIsNone(rules.rule_unlimited_read_in_procedure(c))
+
+    def test_unlimited_read_passes_with_skim_guard(self) -> None:
+        body = (
+            "---\nname: x\ndescription: y\n---\n\n"
+            "Read each flagged SKILL.md — a 10-second skim is enough.\n"
+        )
+        c = self._content("ur3", body=body)
+        self.assertIsNone(rules.rule_unlimited_read_in_procedure(c))
+
+    def test_uncapped_followup_fires(self) -> None:
+        body = (
+            "---\nname: x\ndescription: y\n---\n\n"
+            "# Workflow\n\nVerify each referenced path exists on disk.\n"
+        )
+        c = self._content("uc", body=body)
+        result = rules.rule_uncapped_followup(c)
+        self.assertIsNotNone(result)
+        self.assertEqual(result[0], "medium")
+
+    def test_uncapped_followup_passes_with_max_guard(self) -> None:
+        body = (
+            "---\nname: x\ndescription: y\n---\n\n"
+            "Verify each referenced path exists — at most 3 traces total, "
+            "don't chase into source repos.\n"
+        )
+        c = self._content("uc2", body=body)
+        self.assertIsNone(rules.rule_uncapped_followup(c))
+
+    def test_uncapped_followup_passes_with_one_per_finding(self) -> None:
+        body = (
+            "---\nname: x\ndescription: y\n---\n\n"
+            "Check each cited file — one ls per finding, no spelunking.\n"
+        )
+        c = self._content("uc3", body=body)
+        self.assertIsNone(rules.rule_uncapped_followup(c))
+
+    def test_batch_invitation_fires(self) -> None:
+        body = (
+            "---\nname: x\ndescription: y\n---\n\n"
+            "# Workflow\n\nRead the flagged files in parallel.\n"
+        )
+        c = self._content("bi", body=body)
+        result = rules.rule_batch_invitation(c)
+        self.assertIsNotNone(result)
+        self.assertEqual(result[0], "medium")
+
+    def test_batch_invitation_passes_with_single_batch_guard(self) -> None:
+        body = (
+            "---\nname: x\ndescription: y\n---\n\n"
+            "Read the flagged files in parallel — in a single batch, don't stage.\n"
+        )
+        c = self._content("bi2", body=body)
+        self.assertIsNone(rules.rule_batch_invitation(c))
+
+    def test_cost_trap_rules_dont_flag_skills_quality_own_skillmd(self) -> None:
+        # Regression guard: the very SKILL.md that documents these rules
+        # must itself be clean by them, or the next ruleset bump flags
+        # skills-quality as a cost-trap offender (false positive on its
+        # own docs).
+        own = _SKILL_ROOT / "SKILL.md"
+        if not own.exists():
+            self.skipTest("SKILL.md not present in test layout")
+        body = own.read_text(encoding="utf-8")
+        skill_dir = _make_skill(self.tmp, "sq", body=body)
+        c = rules.build_content(skill_dir)
+        assert c is not None
+        self.assertIsNone(rules.rule_unlimited_read_in_procedure(c))
+        self.assertIsNone(rules.rule_uncapped_followup(c))
+        self.assertIsNone(rules.rule_batch_invitation(c))
+
+    def test_cost_trap_rules_dont_flag_skills_freshness_skillmd(self) -> None:
+        # Symmetric regression guard for skills-freshness/SKILL.md, which
+        # this same PR tightened with the guard wording. A future re-word
+        # that drops `limit=80` or "max 3 traces total" must surface here.
+        sf = _SKILL_ROOT.parent / "skills-freshness" / "SKILL.md"
+        if not sf.exists():
+            self.skipTest("skills-freshness/SKILL.md not present in test layout")
+        body = sf.read_text(encoding="utf-8")
+        skill_dir = _make_skill(self.tmp, "sf", body=body)
+        c = rules.build_content(skill_dir)
+        assert c is not None
+        self.assertIsNone(rules.rule_unlimited_read_in_procedure(c))
+        self.assertIsNone(rules.rule_uncapped_followup(c))
+        self.assertIsNone(rules.rule_batch_invitation(c))
+
+    def test_uncapped_followup_passes_with_smart_apostrophe_guard(self) -> None:
+        # Regression: autocorrect / paste-in text commonly produces the
+        # right-single-quote (U+2019) instead of straight ASCII. The
+        # CAP_GUARD_RE char class must accept both. Earlier code review
+        # caught a version where the class was three copies of straight
+        # ASCII — silently dropping smart-quote text on the floor.
+        #
+        # The body deliberately contains ONLY the smart-quote-guard ("don’t
+        # chase") — no `stop after N` / `at most N` / `one ls per` co-guard
+        # — so this test fails the moment the smart-quote alternation
+        # regresses. A prior draft stacked a second guard alongside the
+        # smart-quote one and silently passed via the unrelated alternative.
+        body = (
+            "---\nname: x\ndescription: y\n---\n\n"
+            "Verify each cited path — don’t chase into source repos.\n"
+        )
+        c = self._content("uc_smart", body=body)
+        self.assertIsNone(rules.rule_uncapped_followup(c))
+
+    def test_batch_invitation_passes_with_smart_apostrophe_guard(self) -> None:
+        # Same regression for BATCH_GUARD_RE's don['’]t alternation. As
+        # above, body uses ONLY the smart-quote guard — no `single batch`
+        # / `one batch` / `all at once` co-guard — so the test exercises
+        # the smart-quote path and only the smart-quote path.
+        body = (
+            "---\nname: x\ndescription: y\n---\n\n"
+            "Read the flagged files in parallel — don’t stage.\n"
+        )
+        c = self._content("bi_smart", body=body)
+        self.assertIsNone(rules.rule_batch_invitation(c))
+
+    def test_guard_before_imperative_is_invisible_forward_window(self) -> None:
+        # Pins the documented forward-only window behavior in
+        # _matches_without_nearby_guard. A caveat written BEFORE the
+        # imperative must NOT satisfy the guard — only guidance inline
+        # or downstream counts. If someone changes the helper to look
+        # bidirectionally, this test will break — and that's the point.
+        body = (
+            "---\nname: x\ndescription: y\n---\n\n"
+            "Use limit=80 when needed. Read each SKILL.md and check the "
+            "frontmatter.\n"
+        )
+        # 'limit=80' lands BEFORE 'read each SKILL.md', so the guard
+        # check inside the forward window finds no LIMIT_GUARD hit — rule
+        # must fire.
+        c = self._content("fw_before", body=body)
+        result = rules.rule_unlimited_read_in_procedure(c)
+        self.assertIsNotNone(result)
+        self.assertEqual(result[0], "medium")
+
 
 # ---------- ruleset hash tests ----------
 

@@ -47,7 +47,7 @@ If the table is `All skills up to date - nothing to review.`, **STOP**. Nothing 
 |---|---|
 | `N pass` only | Tell the user it's clean. Don't load the SKILL.md. |
 | `M FAIL` / `K ERROR` | Inspect the failing checks under "Failures / errors", read the cited paths, propose a fix or explain why the check itself is wrong. Don't auto-fix. |
-| `no declared criteria - needs LLM review` | Read the SKILL.md once. Verify: (a) frontmatter has `name` + `description`; (b) the description still matches what the skill does; (c) no broken file/command references in the body. Surface anything off. |
+| `no declared criteria - needs LLM review` | Read the SKILL.md once with `limit=80` (frontmatter + first one or two sections is all you need — no deep read). Verify: (a) frontmatter has `name` + `description`; (b) the description still matches what the skill does; (c) no broken file/command references in the body — cap path verification at **one `ls` per finding, max 3 traces total**, don't spelunk into source repos. Surface anything off. |
 | `removed` | Confirm the deletion was intentional; the manifest update will drop the entry. |
 | `TOML parse error: ...` | Quote the error verbatim to the user. Don't guess fixes. |
 

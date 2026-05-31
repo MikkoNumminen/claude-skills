@@ -36,7 +36,8 @@ except (AttributeError, OSError):
 # both install modes work:
 #   - install-mikko.sh (copy): lib lives as a sibling of this script.
 #   - install.sh (symlink) + source-repo direct run: __file__ resolves into
-#     the source tree, where ../_lib/ holds the lib (3rd candidate).
+#     the source tree, where ../_lib/ holds the lib.
+# (Kept in lockstep with skills-freshness.py's identical preamble.)
 _HERE = Path(__file__).resolve().parent
 for _candidate in (_HERE, _HERE.parent / "_lib"):
     if (_candidate / "skills_audit_lib.py").is_file():

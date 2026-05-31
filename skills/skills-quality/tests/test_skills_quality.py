@@ -179,6 +179,95 @@ class RuleTests(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertEqual(result[0], "medium")
 
+    # ---- cost-trap rules (added 2026-05-31) ----
+
+    def test_unlimited_read_fires_on_plain_imperative(self) -> None:
+        body = (
+            "---\nname: x\ndescription: y\n---\n\n"
+            "# Workflow\n\n## Step 1\n\nRead each SKILL.md and check the frontmatter.\n"
+        )
+        c = self._content("ur", body=body)
+        result = rules.rule_unlimited_read_in_procedure(c)
+        self.assertIsNotNone(result)
+        self.assertEqual(result[0], "medium")
+
+    def test_unlimited_read_passes_with_limit_guard_nearby(self) -> None:
+        body = (
+            "---\nname: x\ndescription: y\n---\n\n"
+            "# Workflow\n\nRead each SKILL.md with `limit=80` to skim only the frontmatter.\n"
+        )
+        c = self._content("ur2", body=body)
+        self.assertIsNone(rules.rule_unlimited_read_in_procedure(c))
+
+    def test_unlimited_read_passes_with_skim_guard(self) -> None:
+        body = (
+            "---\nname: x\ndescription: y\n---\n\n"
+            "Read each flagged SKILL.md — a 10-second skim is enough.\n"
+        )
+        c = self._content("ur3", body=body)
+        self.assertIsNone(rules.rule_unlimited_read_in_procedure(c))
+
+    def test_uncapped_followup_fires(self) -> None:
+        body = (
+            "---\nname: x\ndescription: y\n---\n\n"
+            "# Workflow\n\nVerify each referenced path exists on disk.\n"
+        )
+        c = self._content("uc", body=body)
+        result = rules.rule_uncapped_followup(c)
+        self.assertIsNotNone(result)
+        self.assertEqual(result[0], "medium")
+
+    def test_uncapped_followup_passes_with_max_guard(self) -> None:
+        body = (
+            "---\nname: x\ndescription: y\n---\n\n"
+            "Verify each referenced path exists — at most 3 traces total, "
+            "don't chase into source repos.\n"
+        )
+        c = self._content("uc2", body=body)
+        self.assertIsNone(rules.rule_uncapped_followup(c))
+
+    def test_uncapped_followup_passes_with_one_per_finding(self) -> None:
+        body = (
+            "---\nname: x\ndescription: y\n---\n\n"
+            "Check each cited file — one ls per finding, no spelunking.\n"
+        )
+        c = self._content("uc3", body=body)
+        self.assertIsNone(rules.rule_uncapped_followup(c))
+
+    def test_batch_invitation_fires(self) -> None:
+        body = (
+            "---\nname: x\ndescription: y\n---\n\n"
+            "# Workflow\n\nRead the flagged files in parallel.\n"
+        )
+        c = self._content("bi", body=body)
+        result = rules.rule_batch_invitation(c)
+        self.assertIsNotNone(result)
+        self.assertEqual(result[0], "medium")
+
+    def test_batch_invitation_passes_with_single_batch_guard(self) -> None:
+        body = (
+            "---\nname: x\ndescription: y\n---\n\n"
+            "Read the flagged files in parallel — in a single batch, don't stage.\n"
+        )
+        c = self._content("bi2", body=body)
+        self.assertIsNone(rules.rule_batch_invitation(c))
+
+    def test_cost_trap_rules_dont_flag_skills_quality_own_skillmd(self) -> None:
+        # Regression guard: the very SKILL.md that documents these rules
+        # must itself be clean by them, or the next ruleset bump flags
+        # skills-quality as a cost-trap offender (false positive on its
+        # own docs).
+        own = _SKILL_ROOT / "SKILL.md"
+        if not own.exists():
+            self.skipTest("SKILL.md not present in test layout")
+        body = own.read_text(encoding="utf-8")
+        skill_dir = _make_skill(self.tmp, "sq", body=body)
+        c = rules.build_content(skill_dir)
+        assert c is not None
+        self.assertIsNone(rules.rule_unlimited_read_in_procedure(c))
+        self.assertIsNone(rules.rule_uncapped_followup(c))
+        self.assertIsNone(rules.rule_batch_invitation(c))
+
 
 # ---------- ruleset hash tests ----------
 

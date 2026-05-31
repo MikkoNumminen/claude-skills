@@ -76,6 +76,50 @@ FRONTMATTER_FIELD_RE = re.compile(r"^([a-zA-Z0-9_-]+):[ \t]+(\S.*?)\s*$", re.MUL
 CODE_FENCE_RE = re.compile(r"^(?:```|~~~)", re.MULTILINE)
 
 
+# Cost-trap patterns (added 2026-05-31 after the local-computation A/B study
+# in D:/tmp/skills-optim-study/ — 3 of 6 cells went negative because the
+# AFTER arm followed procedural language more conscientiously than the
+# improvised BEFORE arm. These rules catch the three mechanisms surfaced
+# there: read-granularity regression, post-script review depth, and
+# parallel-batch staging).
+
+# "read each/all/every X" or "read the flagged/listed X" — capable models
+# read with no limit param and pull large files in full. The guard pattern
+# below accepts an explicit limit / first-N-lines / frontmatter-only nearby.
+UNLIMITED_READ_PATTERNS = [
+    re.compile(r"\bread\s+(?:each|all|every)\s+\w+", re.IGNORECASE),
+    re.compile(r"\bread\s+the\s+(?:flagged|listed|matching|relevant|cited)\s+\w+", re.IGNORECASE),
+]
+LIMIT_GUARD_RE = re.compile(
+    r"\blimit\s*=\s*\d+|\bfirst\s+\d+\s+(?:lines?|chars?|sections?)|"
+    r"\bfrontmatter[\s\-]?(?:only|alone)|\bonly\s+the\s+(?:frontmatter|first|header)|"
+    r"\bno\s+deep\s+read|\bskim\b|\b10[\s\-]?second\s+skim\b",
+    re.IGNORECASE,
+)
+
+# "verify/check/trace/investigate/chase each X" with no cap on how deep
+# to go. Models will spelunk thoroughly when not capped — skills-freshness/opus
+# AFTER arm spent 4 extra Bash calls tracing path refs into the source repo.
+UNCAPPED_FOLLOWUP_PATTERNS = [
+    re.compile(r"\b(?:verify|check|trace|investigate|chase|inspect|examine)\s+(?:each|every|all)\s+\w+", re.IGNORECASE),
+    re.compile(r"\b(?:verify|check)\s+(?:all\s+)?(?:referenced|cited|listed)\s+(?:paths?|files?|links?)", re.IGNORECASE),
+]
+CAP_GUARD_RE = re.compile(
+    r"\b(?:max(?:imum)?|cap(?:ped)?|stop\s+after|at\s+most|no\s+more\s+than|"
+    r"up\s+to)\s+\d+|\bone\s+(?:ls|grep|read|check)\s+per\b|\bdon[''']t\s+(?:spelunk|chase|trace)\b",
+    re.IGNORECASE,
+)
+
+# "in parallel" without an explicit single-batch constraint. Models may stage
+# parallel reads into multiple batches, creating extra cache checkpoints.
+PARALLEL_RE = re.compile(r"\bin\s+parallel\b", re.IGNORECASE)
+BATCH_GUARD_RE = re.compile(
+    r"\bsingle\s+batch\b|\bone\s+batch\b|\bdon[''']t\s+stage\b|"
+    r"\bnot\s+in\s+(?:multiple|two|several)\s+batches?\b|\ball\s+at\s+once\b",
+    re.IGNORECASE,
+)
+
+
 # ---------- per-skill content snapshot ----------
 
 
@@ -226,14 +270,83 @@ def rule_excessive_code_blocks(c: SkillContent) -> Finding | None:
     return None
 
 
+def _matches_without_nearby_guard(
+    text: str, signal_re: re.Pattern[str], guard_re: re.Pattern[str], window: int = 300
+) -> int:
+    """Count matches of signal_re that DON'T have guard_re within `window`
+    chars after the match. The window is one-sided forward so guidance
+    that lands AFTER the imperative (typical: 'Read each SKILL.md with
+    limit=80') counts as a guard; guidance buried elsewhere in the file
+    does not."""
+    count = 0
+    for m in signal_re.finditer(text):
+        end = min(len(text), m.end() + window)
+        if not guard_re.search(text[m.start():end]):
+            count += 1
+    return count
+
+
+def rule_unlimited_read_in_procedure(c: SkillContent) -> Finding | None:
+    text = _strip_code_fences(c.skill_md_text)
+    total = sum(
+        _matches_without_nearby_guard(text, p, LIMIT_GUARD_RE)
+        for p in UNLIMITED_READ_PATTERNS
+    )
+    if total >= 1:
+        return (
+            "medium",
+            f"{total} 'read each/all/every X' instruction(s) with no nearby limit guidance "
+            "(limit=N, first N lines, frontmatter-only, 10-second skim). Capable models "
+            "follow the procedure literally and pull large files in full - the local-computation "
+            "A/B study saw skills-freshness/haiku AFTER read 233,876 chars vs BEFORE's 116,731 "
+            "from exactly this pattern.",
+        )
+    return None
+
+
+def rule_uncapped_followup(c: SkillContent) -> Finding | None:
+    text = _strip_code_fences(c.skill_md_text)
+    total = sum(
+        _matches_without_nearby_guard(text, p, CAP_GUARD_RE)
+        for p in UNCAPPED_FOLLOWUP_PATTERNS
+    )
+    if total >= 1:
+        return (
+            "medium",
+            f"{total} 'verify/check/trace each X' instruction(s) with no cap (max N, "
+            "stop after N, at most N, one ls per finding). Capable models will spelunk - "
+            "skills-freshness/opus AFTER spent 4 extra Bash calls chasing path refs into a "
+            "source repo, costing +28K tokens (-21% sign flip).",
+        )
+    return None
+
+
+def rule_batch_invitation(c: SkillContent) -> Finding | None:
+    text = _strip_code_fences(c.skill_md_text)
+    total = _matches_without_nearby_guard(text, PARALLEL_RE, BATCH_GUARD_RE)
+    if total >= 1:
+        return (
+            "medium",
+            f"{total} 'in parallel' instruction(s) with no 'single batch' constraint. Models "
+            "may stage reads into multiple batches, creating extra cache checkpoints - "
+            "skills-quality/sonnet AFTER staged 6+8 reads and paid +27K cache_creation tokens "
+            "(-12% sign flip).",
+        )
+    return None
+
+
 # Ordered: high-severity gates first so the LLM-review trigger evaluation
-# short-circuits cleanly.
+# short-circuits cleanly. Cost-trap rules at the end (all medium, picked up
+# only after the unambiguous structural rules have fired).
 RULES: list[tuple[str, Rule]] = [
     ("missing_frontmatter", rule_missing_frontmatter),
     ("long_imperative_no_script", rule_long_imperative_no_script),
     ("imperative_prose_no_script", rule_imperative_prose_no_script),
     ("very_long_skill", rule_very_long_skill),
     ("excessive_code_blocks", rule_excessive_code_blocks),
+    ("unlimited_read_in_procedure", rule_unlimited_read_in_procedure),
+    ("uncapped_followup", rule_uncapped_followup),
+    ("batch_invitation", rule_batch_invitation),
 ]
 
 

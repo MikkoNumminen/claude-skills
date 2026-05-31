@@ -268,6 +268,45 @@ class RuleTests(unittest.TestCase):
         self.assertIsNone(rules.rule_uncapped_followup(c))
         self.assertIsNone(rules.rule_batch_invitation(c))
 
+    def test_cost_trap_rules_dont_flag_skills_freshness_skillmd(self) -> None:
+        # Symmetric regression guard for skills-freshness/SKILL.md, which
+        # this same PR tightened with the guard wording. A future re-word
+        # that drops `limit=80` or "max 3 traces total" must surface here.
+        sf = _SKILL_ROOT.parent / "skills-freshness" / "SKILL.md"
+        if not sf.exists():
+            self.skipTest("skills-freshness/SKILL.md not present in test layout")
+        body = sf.read_text(encoding="utf-8")
+        skill_dir = _make_skill(self.tmp, "sf", body=body)
+        c = rules.build_content(skill_dir)
+        assert c is not None
+        self.assertIsNone(rules.rule_unlimited_read_in_procedure(c))
+        self.assertIsNone(rules.rule_uncapped_followup(c))
+        self.assertIsNone(rules.rule_batch_invitation(c))
+
+    def test_uncapped_followup_passes_with_smart_apostrophe_guard(self) -> None:
+        # Regression: autocorrect / paste-in text commonly produces the
+        # right-single-quote (U+2019) instead of straight ASCII. The
+        # CAP_GUARD_RE char class must accept both. Earlier code review
+        # caught a version where the class was three copies of straight
+        # ASCII — silently dropping smart-quote text on the floor.
+        body = (
+            "---\nname: x\ndescription: y\n---\n\n"
+            "Verify each cited path — don’t chase into source repos, "
+            "stop after 3 traces.\n"
+        )
+        c = self._content("uc_smart", body=body)
+        self.assertIsNone(rules.rule_uncapped_followup(c))
+
+    def test_batch_invitation_passes_with_smart_apostrophe_guard(self) -> None:
+        # Same regression for BATCH_GUARD_RE's don['’]t alternation.
+        body = (
+            "---\nname: x\ndescription: y\n---\n\n"
+            "Read the flagged files in parallel — don’t stage; do it "
+            "all at once.\n"
+        )
+        c = self._content("bi_smart", body=body)
+        self.assertIsNone(rules.rule_batch_invitation(c))
+
 
 # ---------- ruleset hash tests ----------
 

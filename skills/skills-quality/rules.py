@@ -106,7 +106,7 @@ UNCAPPED_FOLLOWUP_PATTERNS = [
 ]
 CAP_GUARD_RE = re.compile(
     r"\b(?:max(?:imum)?|cap(?:ped)?|stop\s+after|at\s+most|no\s+more\s+than|"
-    r"up\s+to)\s+\d+|\bone\s+(?:ls|grep|read|check)\s+per\b|\bdon[''']t\s+(?:spelunk|chase|trace)\b",
+    r"up\s+to)\s+\d+|\bone\s+(?:ls|grep|read|check)\s+per\b|\bdon['’]t\s+(?:spelunk|chase|trace)\b",
     re.IGNORECASE,
 )
 
@@ -114,7 +114,7 @@ CAP_GUARD_RE = re.compile(
 # parallel reads into multiple batches, creating extra cache checkpoints.
 PARALLEL_RE = re.compile(r"\bin\s+parallel\b", re.IGNORECASE)
 BATCH_GUARD_RE = re.compile(
-    r"\bsingle\s+batch\b|\bone\s+batch\b|\bdon[''']t\s+stage\b|"
+    r"\bsingle\s+batch\b|\bone\s+batch\b|\bdon['’]t\s+stage\b|"
     r"\bnot\s+in\s+(?:multiple|two|several)\s+batches?\b|\ball\s+at\s+once\b",
     re.IGNORECASE,
 )
@@ -277,7 +277,17 @@ def _matches_without_nearby_guard(
     chars after the match. The window is one-sided forward so guidance
     that lands AFTER the imperative (typical: 'Read each SKILL.md with
     limit=80') counts as a guard; guidance buried elsewhere in the file
-    does not."""
+    does not.
+
+    Footgun for SKILL.md authors: a caveat written BEFORE an imperative
+    is invisible to this check. Put the guard inline with or after the
+    instruction itself, not in a preamble paragraph.
+
+    Frontmatter is NOT stripped before scanning — a barney or description
+    containing 'in parallel' or 'read each X' will count. This is by
+    design (recall-biased; the LLM judges false positives) but worth
+    noting if a frontmatter flag looks spurious.
+    """
     count = 0
     for m in signal_re.finditer(text):
         end = min(len(text), m.end() + window)

@@ -149,5 +149,5 @@ pattern = "install-mikko\\.sh"
 [[check]]
 kind = "file_contains"
 path = "SKILL.md"
-pattern = "mikko-\\*"
+pattern = "--dry-run"
 ```

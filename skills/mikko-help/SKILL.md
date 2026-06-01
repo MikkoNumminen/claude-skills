@@ -269,9 +269,6 @@ Staleness checks run by `/mikko-skills-freshness` on any change to this skill â€
 
 ```toml
 [[check]]
-kind = "no_broken_md_links"
-
-[[check]]
 kind = "file_contains"
 path = "SKILL.md"
 pattern = "^## Flags"

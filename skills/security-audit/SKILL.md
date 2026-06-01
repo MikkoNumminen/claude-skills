@@ -16,9 +16,7 @@ This skill is **the orchestrator**. It does NOT do the agents' work itself — i
 # Adjacent skills
 
 - `/audit` — modular-architecture refactor. Orthogonal axis. A finding from this skill that says "auth is checked in 47 different places" might trigger a follow-up `/audit` pass to consolidate.
-- `/save-roundtrip-audit` — save-pipeline integrity. Run BEFORE Phase 3 fixes that touch `src/game/state/persistence.ts`, `src/lib/schemas/save.ts`, `src/app/api/save/route.ts`, `src/lib/db.ts`, or `db/migrations/`.
-- `/content-audit` — game-data invariants. Orthogonal.
-- `/new-migration` — required workflow when a security fix needs a schema change. CLAUDE.md §7a gates the merge on the migration being applied to prod.
+- Project-local skills — if the host repo defines companion audit skills (e.g. a data-pipeline audit or a migration workflow skill), run them BEFORE Phase 3 touches the files they own. Check the local `.claude/skills/` directory at Phase 0.
 - `/security-review` — Claude Code built-in. Per-branch / per-PR scope. Use it for incremental PR-level checks; use `/security-audit` for whole-codebase passes. They do not overlap and do not replace each other.
 
 # The phases
@@ -54,8 +52,8 @@ Continuous logs (no gate, agent appends as it works):
 3. **One finding per `security-fixer` invocation** for critical/high. Low/medium independent fixes may run in parallel via `isolation: "worktree"` if they touch disjoint files. If two findings touch the same file, serialize them.
 4. **Gate explicitly.** After every phase, present the artifact's path and a short summary, and ask the user "Phase N complete — review and reply 'approved' to continue, or 'redo' with changes." Do not advance on a non-explicit nod.
 5. **Behavior preservation outside security fixes is non-negotiable.** Each Phase 3 commit is the security fix and the regression test. Nothing else.
-6. **Save data gets extra scrutiny.** Any fix touching `src/game/state/persistence.ts`, `src/lib/db.ts`, `src/lib/schemas/save.ts`, `src/app/api/save/route.ts`, or `src/lib/saveValidation.ts` triggers `/save-roundtrip-audit` BEFORE that fix's commit lands. The saveValidation cheat guards (CLAUDE.md §9) MUST NOT be weakened by a security fix without explicit user sign-off.
-7. **Schema-touching fixes follow CLAUDE.md §7a.** A fix that adds a SQL file under `db/migrations/` is not done until applied to prod via `node --env-file=.env.local scripts/migrate.mjs`. Use `/new-migration` to drive the workflow.
+6. **Persistence-layer fixes get extra scrutiny.** Any fix touching the data-persistence layer (ORM, DB client, schema validation, save/load paths) must be reviewed at Opus level. If a project-local pipeline-audit skill exists, run it before the fix commits.
+7. **Schema-touching fixes must follow the project's migration workflow.** If the repo has a migration convention (files under db/migrations/, a project-local migration skill, or a documented migration script), a fix is not done until the migration is applied to prod. Check CLAUDE.md or the project README for the procedure.
 8. **Auth/crypto/secrets fixes always escalate to Opus.** Even if the change looks small. The orchestrator (this skill) reviews each such fix before merging the next.
 9. **Surface critical findings immediately.** If Phase 1 or Phase 2 uncovers a critical issue (live secret leak, unauthenticated RCE, mass-exposure path), STOP and tell the user before continuing the artifact. Don't wait for the gate.
 10. **Checkpointing.** If a phase grows too large for one session, the agent appends to `docs/security/_progress.md` with what's done and what's next, and the orchestrator (this skill) resumes from there next session.
@@ -78,7 +76,7 @@ When the user invokes `/security-audit` and `docs/security/_progress.md` already
 - **Don't dispatch a generalist agent.** Use the named agent for each phase. The whole reason these agents exist is single-responsibility scoping.
 - **Don't let the fixer expand scope.** A Phase 3 fix that "while I'm here" refactors unrelated code is rejected. Refactors go through `/audit`. Non-security bugs go to `docs/security/04-other-findings.md`.
 - **Don't commit on the agent's behalf without explicit user OK.** Default is staged-clean and hand back unless the orchestrator's prompt explicitly authorized auto-commit.
-- **Don't downgrade the cheat guards** in `src/lib/saveValidation.ts` to "fix" a security finding. Those guards ARE security; if a finding says "they're too strict", surface to the user and ask.
+- **Don't weaken project-defined security invariants** to 'fix' a security finding. If the host repo documents security invariants (in CLAUDE.md, a local SECURITY.md, or inline comments) and a Phase 3 fix would relax them, surface this to the user and get explicit sign-off before proceeding.
 
 ## Token expectations
 

@@ -179,6 +179,16 @@ are intentionally terse so the subagent stays focused on grepping,
 citing, and returning. Each caps the reply at ~400 words to keep the
 aggregate digestible.
 
+#### Common output rules (append to every sub-agent prompt)
+
+Output format — one line per finding, exact template:
+`- [path/file.py:NN](path/file.py#LNN) [severity] — one-line description`
+severity ∈ {critical, high, medium, low}.
+
+Do not fabricate. Every finding must cite a real file:line you can point at in the working tree.
+
+Cap your report at ~400 words.
+
 #### 1. Resource lifecycle
 ```
 Your task is to audit the codebase for resource lifecycle bugs — file handles, subprocesses, tempfiles, network sockets, and GUI widgets that are created but not reliably released.
@@ -191,13 +201,7 @@ Grep for these patterns (see SKILL.md Phase 1 pattern list for the full set):
 - `tk.Toplevel`, `.after(` callbacks that outlive the widget
 - `threading.Thread(` / `Timer(` with no join or cancel path
 
-Output format — one line per finding, exact template:
-`- [path/file.py:NN](path/file.py#LNN) [severity] — one-line description`
-severity ∈ {critical, high, medium, low}.
-
-Do not fabricate. Every finding must cite a real file:line you can point at in the working tree.
-
-Cap your report at ~400 words.
+[append the Common output rules above]
 ```
 
 #### 2. Data integrity
@@ -212,13 +216,7 @@ Grep for these patterns (see SKILL.md Phase 1 pattern list for the full set):
 - sample-rate, channel-count, bit-depth assumed rather than read from the file
 - `dict.get(key)` where downstream code requires the key to exist
 
-Output format — one line per finding, exact template:
-`- [path/file.py:NN](path/file.py#LNN) [severity] — one-line description`
-severity ∈ {critical, high, medium, low}.
-
-Do not fabricate. Every finding must cite a real file:line you can point at in the working tree.
-
-Cap your report at ~400 words.
+[append the Common output rules above]
 ```
 
 #### 3. Concurrency
@@ -233,13 +231,7 @@ Grep for these patterns (see SKILL.md Phase 1 pattern list for the full set):
 - GUI callbacks that mutate state touched by a worker thread without a lock
 - `if self._running: ...` with no lock around the flag
 
-Output format — one line per finding, exact template:
-`- [path/file.py:NN](path/file.py#LNN) [severity] — one-line description`
-severity ∈ {critical, high, medium, low}.
-
-Do not fabricate. Every finding must cite a real file:line you can point at in the working tree.
-
-Cap your report at ~400 words.
+[append the Common output rules above]
 ```
 
 #### 4. Error paths
@@ -254,13 +246,7 @@ Grep for these patterns (see SKILL.md Phase 1 pattern list for the full set):
 - bare `raise` inside `except` that has already partially mutated state
 - retry loops that catch and discard the final failure
 
-Output format — one line per finding, exact template:
-`- [path/file.py:NN](path/file.py#LNN) [severity] — one-line description`
-severity ∈ {critical, high, medium, low}.
-
-Do not fabricate. Every finding must cite a real file:line you can point at in the working tree.
-
-Cap your report at ~400 words.
+[append the Common output rules above]
 ```
 
 #### 5. External boundaries
@@ -275,13 +261,7 @@ Grep for these patterns (see SKILL.md Phase 1 pattern list for the full set):
 - `zipfile.extractall` / `tarfile.extractall` without member-path checks
 - `eval(`, `exec(`, `pickle.loads(` on data crossing a trust boundary
 
-Output format — one line per finding, exact template:
-`- [path/file.py:NN](path/file.py#LNN) [severity] — one-line description`
-severity ∈ {critical, high, medium, low}.
-
-Do not fabricate. Every finding must cite a real file:line you can point at in the working tree.
-
-Cap your report at ~400 words.
+[append the Common output rules above]
 ```
 
 ### Phase 3 — aggregated report

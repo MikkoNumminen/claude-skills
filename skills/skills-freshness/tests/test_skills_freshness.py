@@ -70,6 +70,21 @@ class HashTests(unittest.TestCase):
         (skill / "extra.txt").unlink()
         self.assertNotEqual(h1, freshness.compute_skill_hash(skill))
 
+    def test_pycache_and_pyc_ignored(self) -> None:
+        # Compiled bytecode (a __pycache__ dir, or a stray .pyc/.pyo) is build
+        # output that regenerates on every script run — it must not affect the
+        # hash, or a Python-bearing skill would read as "changed" forever.
+        skill = _make_skill(self.tmp, "foo")
+        h1 = freshness.compute_skill_hash(skill)
+        cache = skill / "__pycache__"
+        cache.mkdir()
+        (cache / "mod.cpython-311.pyc").write_bytes(b"\x00bytecode\x00")
+        self.assertEqual(h1, freshness.compute_skill_hash(skill))
+        # later bytecode churn (different .pyc content) is still ignored
+        (cache / "mod.cpython-311.pyc").write_bytes(b"\x00different\x00")
+        (skill / "stray.pyc").write_bytes(b"\x00more\x00")
+        self.assertEqual(h1, freshness.compute_skill_hash(skill))
+
     def test_stable_across_path_separator_platforms(self) -> None:
         # rel paths fed to sha256 must be posix-style for cross-platform manifest stability.
         skill = _make_skill(self.tmp, "foo")

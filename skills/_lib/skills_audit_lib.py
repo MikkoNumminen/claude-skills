@@ -79,6 +79,13 @@ def compute_skill_hash(skill_dir: Path) -> str:
             root_p = Path(root)
             keep: list[str] = []
             for d in dirs:
+                # __pycache__ holds compiled bytecode regenerated whenever a
+                # companion script runs (and whose headers shift after a fresh
+                # install resets source mtimes). Hashing it would mark every
+                # Python-bearing skill "changed" on the next audit — it is build
+                # output, not skill content, so prune it from the walk.
+                if d == "__pycache__":
+                    continue
                 full = root_p / d
                 if full.is_symlink():
                     rel = full.relative_to(skill_dir).as_posix()
@@ -87,6 +94,10 @@ def compute_skill_hash(skill_dir: Path) -> str:
                     keep.append(d)
             dirs[:] = keep
             for fname in files:
+                # Same reason as __pycache__ above: compiled bytecode is not
+                # source-of-truth and churns independently of the skill.
+                if fname.endswith((".pyc", ".pyo")):
+                    continue
                 full = root_p / fname
                 rel = full.relative_to(skill_dir).as_posix()
                 if full.is_symlink():

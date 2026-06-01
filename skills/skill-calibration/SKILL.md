@@ -93,6 +93,17 @@ Branch name pattern: `calib/<skill>-A` and `calib/<skill>-B`. Both branches thro
 
 If a worktree already exists at that path (from a prior calibration), bail and ask the user to clean up first. Do not silently overwrite.
 
+### 3.5 Confirm scope before a large dispatch
+
+Before dispatching (step 4): if the run resolves to **more than 6 skills** (more than ~12 sub-agents, since each skill is two arms), STOP and confirm with the user first — the same gate `--portfolio` already carries. Print the resolved skill list and the cost estimate, then wait:
+
+```
+about to calibrate N skills = 2×N sub-agents, ~140K × N ≈ <total> tokens.
+reply 'yes' to proceed.
+```
+
+A single `--repo <name>` on a 14-skill repo is 28 sub-agents (~2M tokens) — large enough that it must never fire silently. `--skills foo,bar,baz` with ≤6 skills runs without a gate.
+
 ### 4. Dispatch sub-agents in parallel
 
 In a single batch (one message), dispatch 2 × N Sonnet sub-agents — one per arm per skill. Use `subagent_type: "general-purpose"`, `model: "sonnet"`, `run_in_background: true` so the main thread isn't blocked.
@@ -287,3 +298,19 @@ Cadence: per-skill ad-hoc when a skill matures enough to be measured. Per-repo o
 - **Selection bias on tasks.** Auto-synthesized tasks lean toward what the SKILL.md highlights as common use; rare edge-case invocations aren't measured. Override via `--tasks-file` if you want a specific shape.
 - **Outcome quality.** Same caveat as `/mikko-skill-usage` and `/mikko-session-cost`: this counts tokens, not value. A 200K-token sub-agent that produced exactly the right answer counts the same as a 200K-token sub-agent that produced garbage.
 - **No counterfactual at the SKILL.md level.** This skill measures "did the procedure save tokens vs cold scout". It doesn't measure "is the procedure WELL-DESIGNED" — a sloppy SKILL.md that gives bad guidance will still drive a sub-agent through a procedure, possibly cheaper than scouting cold, without that meaning the skill is good.
+
+## Freshness check
+
+Staleness checks run by `/mikko-skills-freshness` on any change to this skill — they assert the skill's load-bearing pieces still ship / stay documented. See that skill for the check vocabulary.
+
+```toml
+[[check]]
+kind = "file_contains"
+path = "SKILL.md"
+pattern = "--portfolio"
+
+[[check]]
+kind = "file_contains"
+path = "SKILL.md"
+pattern = "arm B"
+```

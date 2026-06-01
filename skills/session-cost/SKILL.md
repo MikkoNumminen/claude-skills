@@ -145,3 +145,17 @@ This is a pure JSONL parser. No model calls. No network. Cost: zero model tokens
 - **No outcome quality.** Same caveat as `mikko-skill-usage`: this counts tokens, not value. A 200K-token sub-agent that produced exactly the right answer is the same number as a 200K-token sub-agent that produced garbage.
 - **No counterfactual.** The "what would this have cost without parallel sub-agents?" question is unknowable — the scanner only sees what happened.
 - **No dollar figure.** Counted tokens × per-token rate (model-dependent) is left to the reader. Different sub-agents may use different models (Sonnet vs Opus); the `.meta.json` sidecar records this if you want to break out cost by model in a future revision.
+
+## Freshness check
+
+Staleness checks run by `/mikko-skills-freshness` on any change to this skill — they assert the skill's load-bearing pieces still ship / stay documented. See that skill for the check vocabulary.
+
+```toml
+[[check]]
+kind = "path_exists"
+path = "scan.mjs"
+
+[[check]]
+kind = "command_exists"
+command = "node"
+```

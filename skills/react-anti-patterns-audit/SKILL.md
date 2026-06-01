@@ -246,6 +246,8 @@ For a small-to-medium React codebase (~30 component files, ~3K LOC):
 - 6 checks × 1 pass each: ~10–15K tokens input (file Reads) + ~5K output (the report)
 - Total: ~20–25K tokens, ~30s wall-clock
 
+_These figures are editorial estimates, not measured — once `/mikko-skill-usage` has receipts for this skill, the measured numbers supersede them._
+
 For a large React monorepo (~200 component files): consider running per-package with `--source packages/<name>` rather than the whole tree at once. The aggregation isn't smart enough yet to dedupe across packages.
 
 Cadence: per-PR for substantial component changes, ~30 invocations/year on an actively-iterating React project.
@@ -279,3 +281,19 @@ The skill's value is concentrated on the six checks it does have. Adding pattern
 | Severity / urgency of fixing | Out of scope — the report doesn't claim severity | — |
 
 The report's claims are auditable: every finding cites file:line and shows the offending snippet. A human can open the file and judge whether it matches the smell shape or the counter-example. The skill never says "this is a bug, fix it" — it says "this matches a documented smell shape; you decide."
+
+## Freshness check
+
+Staleness checks run by `/mikko-skills-freshness` on any change to this skill — they assert the skill's load-bearing pieces still ship / stay documented. See that skill for the check vocabulary.
+
+```toml
+[[check]]
+kind = "file_contains"
+path = "SKILL.md"
+pattern = "key-as-index-in-lists"
+
+[[check]]
+kind = "file_contains"
+path = "SKILL.md"
+pattern = "pre-flight"
+```

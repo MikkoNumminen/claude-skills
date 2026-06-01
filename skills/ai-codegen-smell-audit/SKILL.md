@@ -638,3 +638,18 @@ codebases.
   product, not an obstacle.
 - **Never run during initial code generation.** The skill would
   chase its own tail. Run on finished diffs only.
+
+## Freshness check
+
+Staleness checks run by `/mikko-skills-freshness` on any change to this skill — they assert the skill's load-bearing pieces still ship / stay documented. See that skill for the check vocabulary.
+
+```toml
+[[check]]
+kind = "path_exists"
+path = "evals/evals.json"
+
+[[check]]
+kind = "file_contains"
+path = "SKILL.md"
+pattern = "## The checklist"
+```

@@ -135,3 +135,19 @@ The chicken-and-egg of "you need install to install" is solved by `install-mikko
 Run `/mikko-skill-usage` for measured numbers after a few invocations.
 
 Cadence: once at machine setup, then a handful of times per year when new skills land or you want to update.
+
+## Freshness check
+
+Staleness checks run by `/mikko-skills-freshness` on any change to this skill — they assert the skill's load-bearing pieces still ship / stay documented. See that skill for the check vocabulary.
+
+```toml
+[[check]]
+kind = "file_contains"
+path = "SKILL.md"
+pattern = "install-mikko\\.sh"
+
+[[check]]
+kind = "file_contains"
+path = "SKILL.md"
+pattern = "--dry-run"
+```

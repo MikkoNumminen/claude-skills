@@ -24,7 +24,7 @@ NOT for: real-time monitoring (the JSONL is flushed at session end, sometimes la
 1. Walk `~/.claude/projects/*/` (every project Claude Code has been used in) and enumerate `*.jsonl` plus `*/subagents/*.jsonl` sidechain files.
 2. For each line where `type == "assistant"` AND `attributionSkill` is set, record `{ skill, promptId, requestId, sessionId, timestamp, usage }`.
 3. Deduplicate by `requestId` (the harness emits two adjacent assistant lines per API call when a message contains both thinking and tool_use blocks — they share `requestId` and `usage`).
-4. Group records by `skill`, then by `promptId` to count invocations.
+4. Group records by `skill`, then by `sessionId` to count invocations — one `(skill, session)` pair is one invocation. (The harness only stamps `promptId` on user / tool_result lines, not assistant lines, so the same skill run twice in one session is undercounted by design; see the note in `scan.mjs`.)
 5. Compute per-skill: invocation count in window, average `tokens_per_use` (including cache-creation input + output, excluding cache-read which is a hit, not a cost), total tokens in window, and an extrapolated `uses_per_year` from the in-window rate.
 6. Emit two files in `.claude/agent-verdicts/`: the dated `SKILL-USAGE-{YYYY-MM-DD}.json` (history) and a byte-identical `SKILL-USAGE-LATEST.json` (stable filename for consumers like `/skill-registry`'s transcript-measurement overlay).
 
@@ -35,8 +35,10 @@ End-to-end with no user pauses. The companion script does the parsing; the main 
 ### 1. Run the scanner (main thread)
 
 ```bash
-node skills/skill-usage/scan.mjs --window-days 90 --out .claude/agent-verdicts/SKILL-USAGE-$(date +%Y-%m-%d).json
+node ~/.claude/skills/mikko-skill-usage/scan.mjs --window-days 90 --out .claude/agent-verdicts/SKILL-USAGE-$(date +%Y-%m-%d).json
 ```
+
+The script writes **two** files: the dated `SKILL-USAGE-{YYYY-MM-DD}.json` (from `--out`) and a byte-identical `SKILL-USAGE-LATEST.json` sibling alongside it — a stable filename that consumers (e.g. `/skill-registry`'s transcript-measurement overlay) read so they don't go stale. The dated file is the archive copy; `LATEST` always points at the newest run.
 
 Args:
 
@@ -79,7 +81,7 @@ Do NOT auto-commit. Do NOT mutate any other file. The measurement is a snapshot;
   attributed_assistant_messages: number,  // total dedup'd assistant lines with attributionSkill set
   skills: [{
     name: string,              // value of attributionSkill, verbatim
-    invocations: number,       // count of distinct promptIds with at least one attributed message
+    invocations: number,       // count of distinct sessions for this skill (one (skill, session) = one invocation)
     tokens_per_use_avg: number, // mean of per-invocation totals
     uses_per_year: number,     // (invocations / window_days) * 365, rounded
     total_tokens_in_window: number,
@@ -92,7 +94,7 @@ Do NOT auto-commit. Do NOT mutate any other file. The measurement is a snapshot;
 
 ### Token accounting convention
 
-Per-invocation tokens sum these `usage` fields across all messages with that `promptId`:
+Per-invocation tokens sum these `usage` fields across all messages in that invocation (one `(skill, session)` group):
 
 - `input_tokens` — fresh input to the API
 - `output_tokens` — model output
@@ -141,3 +143,25 @@ The output is an honest measurement of one specific quantity (token consumption 
 ## Companion script
 
 See [`scan.mjs`](scan.mjs) in this directory. ~200 lines of Node, no external npm deps. Reads JSONL line-by-line with a streaming parser to keep memory bounded; aggregates in-memory; writes one JSON file at the end.
+
+## Freshness check
+
+Staleness checks run by `/mikko-skills-freshness` on any change to this skill — they assert the skill's load-bearing pieces still ship / stay documented. See that skill for the check vocabulary.
+
+```toml
+[[check]]
+kind = "path_exists"
+path = "scan.mjs"
+
+[[check]]
+kind = "command_exists"
+command = "node"
+
+[[check]]
+kind = "file_contains"
+path = "SKILL.md"
+pattern = "--window-days"
+
+[[check]]
+kind = "no_broken_md_links"
+```

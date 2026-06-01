@@ -94,6 +94,11 @@ tool calls) — not sequentially. They do not depend on each other.
 Scopes are non-overlapping by design; if an issue falls between two,
 the most appropriate subagent claims it.
 
+**Large repos (> ~300 source files):** subagents have context limits — pass
+each one a `--scope <glob>` hint so its slice fits, and note the chosen
+scopes on the Phase 3 Coverage line so the report shows what was and was not
+walked.
+
 1. **Resource lifecycle** — file handles, subprocesses, tempfiles,
    network connections, GUI widgets. Patterns to grep:
    - `NamedTemporaryFile(delete=False)` without matching cleanup
@@ -387,3 +392,19 @@ repos land closer to ~200K; large polyglot monorepos can exceed ~600K.
 
 Cadence: 1-2× per month per actively-iterating repo; quarterly on
 stable codebases. ~12-20 uses/year per repo for a regular caller.
+
+## Freshness check
+
+Staleness checks run by `/mikko-skills-freshness` on any change to this skill — they assert the skill's load-bearing pieces still ship / stay documented. See that skill for the check vocabulary.
+
+```toml
+[[check]]
+kind = "file_contains"
+path = "SKILL.md"
+pattern = "Phase 2 — five parallel subagents"
+
+[[check]]
+kind = "file_contains"
+path = "SKILL.md"
+pattern = "severity ∈ \\{critical, high, medium, low\\}"
+```

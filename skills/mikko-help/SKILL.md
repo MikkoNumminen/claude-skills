@@ -20,7 +20,7 @@ The discoverability sidekick for the `mikko-*` skill namespace. Type `/mikko-hel
 - When you've just `cd`'d into an unfamiliar codebase and want a friendly "here's what your toolkit would do here" pointer
 - When walking a colleague (or a recruiter) through what your skill catalog does — `--barney` reads like a tour, the full `description` reads like a contract
 
-NOT for: cross-repo registry of skills (use `/mikko-skill-registry` for that — it walks sibling repos, this only reads the local skills directory), token-usage measurements (`/mikko-skill-usage` does that), or a full description of any one skill (use `man <name>` patterns or read its SKILL.md directly).
+NOT for: cross-repo registry of skills (use `/skill-registry` for that — it walks sibling repos, this only reads the local skills directory), token-usage measurements (`/mikko-skill-usage` does that), or a full description of any one skill (use `man <name>` patterns or read its SKILL.md directly).
 
 ## Flags
 
@@ -65,7 +65,7 @@ your installed mikko-* skills:
   mikko-md-to-pdf        Render a markdown report (or any HTML) to a styled PDF using local…
   mikko-sync-readmes     Audit project data against sibling repos' READMEs and open a PR…
 
-tip: `/mikko<Tab>` shows names only. For the cross-repo registry with token math, run `/mikko-skill-registry`.
+tip: `/mikko<Tab>` shows names only. For the cross-repo registry with token math, run `/skill-registry`.
 ```
 
 Truncate descriptions at the first em-dash / period if shorter; otherwise hard-cap at 120 characters and append `…`. The goal is one-screen scannability, not full prose.
@@ -216,17 +216,17 @@ If the source IS found:
 
 ### 5. Done
 
-Print the tip line about `/mikko<Tab>` and `/mikko-skill-registry`, then exit. The whole skill should complete in under 5 seconds end-to-end.
+Print the tip line about `/mikko<Tab>` and `/skill-registry`, then exit. The whole skill should complete in under 5 seconds end-to-end.
 
 ## Token expectations
 
-**Default mode** (no `--detect`), for ~6-10 installed skills:
+**Default mode** (no `--detect`), for ~12-15 installed skills:
 
 - 1-2 × `Glob` (~0.5K each)
-- 6-10 × `Read` of first 10 lines (~0.5K each input, ~3-5K total)
+- 12-15 × `Read` of first 10 lines (~0.5K each input, ~6-8K total)
 - 1 × format + print (~1-2K output)
 
-Total: ~5-8K tokens per invocation. The cheapest skill in the catalog.
+Total: ~8-11K tokens per invocation. Still among the cheapest in the catalog.
 
 **`--detect` mode** adds:
 
@@ -252,7 +252,7 @@ Cadence: ad-hoc, usually a few times per week when actively iterating. ~50 uses/
 ## Limitations
 
 - **Description truncation loses detail.** Full descriptions can be hundreds of characters with multiple invocation triggers. The table view shows only the first ~120 chars. For the full description, open the SKILL.md directly (path is available in the table if rendered with file links).
-- **Local-only view.** This skill only sees what's installed on the current machine. Cross-repo / cross-machine inventory is the `/mikko-skill-registry` job.
+- **Local-only view.** This skill only sees what's installed on the current machine. Cross-repo / cross-machine inventory is the `/skill-registry` job.
 - **No token economics.** This is a name + description list, not a usage report. For tokens-per-use math, run `/mikko-skill-usage` then read the resulting JSON.
 - **`--detect` is a heuristic, not a guarantee.** The decision matrix is opinionated — it picks the audits Mikko reaches for first on each codebase shape. Your priorities may differ. The recommendation is a "here's where I'd start" hallway sign, not a rule.
 - **`--detect` doesn't dispatch audits.** It only suggests. The human still invokes each suggested audit by name. This is by design — skills are recipes, not orchestrators. A future "/mikko-audit-suite" skill could automate the dispatch loop, but that's a separate decision worth making explicitly rather than smuggling it into `mikko-help`.
@@ -262,3 +262,22 @@ Cadence: ad-hoc, usually a few times per week when actively iterating. ~50 uses/
 The `/mikko<Tab>` shortcut from Claude Code's built-in slash-completion already gives names. The gap that `mikko-help` fills is when you need **descriptions** to choose between two skills with similar names — or when you've installed a new skill and forgotten what it does without re-reading the SKILL.md.
 
 For a portfolio audience: the skill exists as a discoverability anchor. A recruiter looking at `claude-skills/` sees that the `mikko-*` prefix has both a tab-complete-friendly grouping AND a built-in "what's in this namespace" command — that's a tiny but real signal of "the author thought about UX, not just function."
+
+## Freshness check
+
+Staleness checks run by `/mikko-skills-freshness` on any change to this skill — they assert the skill's load-bearing pieces still ship / stay documented. See that skill for the check vocabulary.
+
+```toml
+[[check]]
+kind = "no_broken_md_links"
+
+[[check]]
+kind = "file_contains"
+path = "SKILL.md"
+pattern = "^## Flags"
+
+[[check]]
+kind = "file_contains"
+path = "SKILL.md"
+pattern = "`--detect`"
+```

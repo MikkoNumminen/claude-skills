@@ -88,12 +88,12 @@ Mark all numbers clearly as **estimated** — they drift as audits mature, and `
 ```
 mikko-audit-suite — about to run:
 
-  /mikko-react-anti-patterns-audit  (~25K tokens, estimated)
-  /mikko-ai-codegen-smell-audit     (~10K tokens, estimated)
-  /mikko-audit                       (~25K main + 5×~80K parallel Sonnet ≈ ~425K total, estimated)
-  /mikko-security-audit              (~5K main + per-phase Sonnet, gated — phases 0+1 typically ≈ ~50-100K before approval)
+  /mikko-react-anti-patterns-audit  (~?K, estimated at runtime)
+  /mikko-ai-codegen-smell-audit     (~?K, estimated at runtime)
+  /mikko-audit                       (main + 5 parallel Sonnet sub-agents — ~?K, estimated at runtime)
+  /mikko-security-audit              (main + per-phase Sonnet, gated — phases 0+1 only before approval)
 
-estimated total: ~485K-535K tokens, ~30-60min wall-clock (security-audit is phased and pauses for approval; see "phase-gated audits" below for how the suite handles that)
+estimated total: ~?K tokens, ~30-60min wall-clock (the magnitudes above are illustrative placeholders — the runtime procedure computes the actual per-audit estimates; these literals are not measured. security-audit is phased and pauses for approval; see "phase-gated audits" below.)
 
 reply 'yes' to proceed, anything else aborts.
 ```
@@ -255,3 +255,19 @@ Three reasons:
 | Which audits the recruiter would care about | Out of scope; the suite runs them all | — |
 
 The suite's primary claim is mechanical: "I ran these audits in this order and they wrote these reports." That's auditable from the index file alone. The harder claim — "these are the right audits to run on this codebase" — is the matrix's job, and the matrix is editorial. The honesty is naming that clearly rather than dressing it up as automatic.
+
+## Freshness check
+
+Staleness checks run by `/mikko-skills-freshness` on any change to this skill — they assert the skill's load-bearing pieces still ship / stay documented. See that skill for the check vocabulary.
+
+```toml
+[[check]]
+kind = "file_contains"
+path = "SKILL.md"
+pattern = "^## Flags"
+
+[[check]]
+kind = "file_contains"
+path = "SKILL.md"
+pattern = "--partial"
+```

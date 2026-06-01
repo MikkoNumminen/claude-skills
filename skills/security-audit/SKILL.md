@@ -102,3 +102,19 @@ Phase 3 per-finding cost is unchanged.
 Cadence: 1-2× per year per repo for a full audit; quarterly for
 scoped passes on actively-iterating security-sensitive surfaces.
 ~2-6 uses/year per repo.
+
+## Freshness check
+
+Staleness checks run by `/mikko-skills-freshness` on any change to this skill — they assert the skill's load-bearing pieces still ship / stay documented. See that skill for the check vocabulary.
+
+```toml
+[[check]]
+kind = "file_contains"
+path = "SKILL.md"
+pattern = "Phase \\| Agent \\| Artifact \\| Gate"
+
+[[check]]
+kind = "file_contains"
+path = "SKILL.md"
+pattern = "Never auto-advances"
+```

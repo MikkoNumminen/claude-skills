@@ -301,3 +301,25 @@ Ten predicted-vs-intended firings live in [`trigger-calibration.md`](trigger-cal
 - **Never invent a voice the README didn't have.** If the existing README is dry and impersonal, the rewrites stay dry and impersonal. Don't "improve" the prose.
 - **Never proceed without the voice profile.** If the profile extraction fails (empty README, unreadable content), bail. No profile, no rewrites.
 - **Never rewrite a section that failed the voice-match test twice.** Flag for manual rewrite; the report is the deliverable for that section, not the edit.
+
+## Freshness check
+
+Staleness checks run by `/mikko-skills-freshness` on any change to this skill — they assert the skill's load-bearing pieces still ship / stay documented. See that skill for the check vocabulary.
+
+```toml
+[[check]]
+kind = "path_exists"
+path = "trigger-calibration.md"
+
+[[check]]
+kind = "path_exists"
+path = "voice-profile-template.md"
+
+[[check]]
+kind = "no_broken_md_links"
+
+[[check]]
+kind = "file_contains"
+path = "SKILL.md"
+pattern = "## The drift checklist"
+```

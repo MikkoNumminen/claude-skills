@@ -72,6 +72,17 @@ For `--portfolio`, enumerate both globs above with `*` in the repo position and 
 
 Skip skills whose YAML frontmatter `description` is a redirect stub (matches the same heuristic `/skill-registry` uses: contains "superseded" / "redirect" / "renamed" / "moved to" / "see also").
 
+### 1.5 Confirm scope before a large run
+
+With scope resolved and N known — and **before** generating tasks or creating worktrees (steps 2–3) — if the run resolves to **more than 6 skills** (more than ~12 sub-agents, since each skill is two arms), STOP and confirm with the user first, the same gate `--portfolio` already carries. Print the resolved skill list and the cost estimate, then wait:
+
+```
+about to calibrate N skills = 2×N sub-agents, ~140K × N ≈ <total> tokens.
+reply 'yes' to proceed.
+```
+
+A single `--repo <name>` on a 14-skill repo is 28 sub-agents (~2M tokens) — large enough that it must never fire silently. `--skills foo,bar,baz` with ≤6 skills runs without a gate. Gating here, not at dispatch, means a "no" doesn't leave 2N worktrees to clean up.
+
 ### 2. Generate a calibration task per skill
 
 For each in-scope skill, write a representative task description. This is the prompt both arms receive verbatim. The task must be:
@@ -92,17 +103,6 @@ For each in-scope skill, create TWO worktrees in the target repo:
 Branch name pattern: `calib/<skill>-A` and `calib/<skill>-B`. Both branches throwaway — they only exist to give git worktree something to point at.
 
 If a worktree already exists at that path (from a prior calibration), bail and ask the user to clean up first. Do not silently overwrite.
-
-### 3.5 Confirm scope before a large dispatch
-
-Before dispatching (step 4): if the run resolves to **more than 6 skills** (more than ~12 sub-agents, since each skill is two arms), STOP and confirm with the user first — the same gate `--portfolio` already carries. Print the resolved skill list and the cost estimate, then wait:
-
-```
-about to calibrate N skills = 2×N sub-agents, ~140K × N ≈ <total> tokens.
-reply 'yes' to proceed.
-```
-
-A single `--repo <name>` on a 14-skill repo is 28 sub-agents (~2M tokens) — large enough that it must never fire silently. `--skills foo,bar,baz` with ≤6 skills runs without a gate.
 
 ### 4. Dispatch sub-agents in parallel
 

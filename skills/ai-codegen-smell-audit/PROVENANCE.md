@@ -62,10 +62,12 @@ summary: the self-review loop did NOT catch its own blind spots —
 **external skeptical re-review** is what surfaced both misclaims.
 That review pattern (re-audit after merge by a different agent) is
 now part of the AI-first cadence documented in
-[`docs/AI_FIRST_GUIDE.md`](../../../docs/AI_FIRST_GUIDE.md). This is
+`docs/AI_FIRST_GUIDE.md` (AudiobookMaker — not present in this
+library). This is
 one repo over a few days; the calibration table is one data point,
 not validated empirics. Full second-run report at
-[`docs/audits/ai-smell-2026-05-17-v2.md`](../../../docs/audits/ai-smell-2026-05-17-v2.md).
+`docs/audits/ai-smell-2026-05-17-v2.md` (AudiobookMaker — not present
+in this library).
 
 **One pattern observed in `src/` that is NOT in the ten checks** —
 a candidate for a future check once it shows up across multiple

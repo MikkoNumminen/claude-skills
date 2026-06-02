@@ -7,7 +7,7 @@ barney: Looks for bugs in your code — leaks, races, swallowed errors, missing 
 # audit
 
 Runs a comprehensive robustness audit in three phases. Produces a
-structured report at [`docs/audits/audit-<YYYY-MM-DD>.md`](../../../docs/audits/)
+structured report at `docs/audits/audit-<YYYY-MM-DD>.md`
 plus a severity-ranked list of findings suitable for translating into
 one fix branch per area.
 

@@ -30,8 +30,8 @@ skill is the antidote — every check is a specific testable pattern
 with a clear smell example and a clear legitimate example. If a
 finding cannot meet that bar, it does not appear.
 
-The skill is grounded against a real codebase (see "Provenance" at
-the bottom for the original calibration data). Two checks turned up
+The skill is grounded against a real codebase (see [PROVENANCE.md](PROVENANCE.md)
+for the original calibration data). Two checks turned up
 verified hits on the calibration target — `stylistic-drift-within-file`
 and `generic-names-in-domain-context`. The remaining eight either
 found nothing (the calibration target had been carefully human-
@@ -510,9 +510,9 @@ Honest list — the auditor should know these going in:
 ## Eval-schema test
 
 The skill's `evals/evals.json` schema is validated by
-`tests/test_skill_evals.py`,
-which runs as part of the project test suite (pre-commit + CI).
-The test walks every `.claude/skills/*/evals/evals.json` and asserts:
+`tests/test_skill_evals.py` (AudiobookMaker — not present in this
+library), which runs as part of that project's test suite (pre-commit
++ CI). There, the test walks every `skills/*/evals/evals.json` and asserts:
 
 - `skill_name` matches the parent directory name (catches copy-paste
   forks where the slug never got updated)

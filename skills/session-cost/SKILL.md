@@ -1,6 +1,6 @@
 ---
 name: session-cost
-description: Measure the token cost of a single Claude Code session — main thread plus every sub-agent it dispatched. Companion to `/mikko-skill-usage`, which slices the portfolio BY SKILL across all sessions; this one slices a single session BY WHO-SPENT-IT (main thread vs each sub-agent). Use when you want to know "what did this conversation cost so far?", "how much did running that complex feature take?", or "which of my sub-agents was the most expensive?". Reads the same `~/.claude/projects/<dir>/<session>.jsonl` transcripts and `<session>/subagents/agent-*.jsonl` sidechain files that `mikko-skill-usage` reads.
+description: Measure the token cost of one Claude Code session — main thread plus every sub-agent it dispatched. Slices a single session BY WHO-SPENT-IT; companion to `/mikko-skill-usage`, which slices the whole portfolio BY SKILL. Use for "what did this conversation cost so far?", "how much did that feature take?", or "which sub-agent was most expensive?". Reads the local `~/.claude/projects/<dir>/<session>.jsonl` transcripts and their `subagents/agent-*.jsonl` sidechains.
 barney: Counts what one Claude Code conversation cost in tokens — main thread plus every sub-agent it spawned. Pair with /mikko-skill-usage when you want both axes.
 ---
 

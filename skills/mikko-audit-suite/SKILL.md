@@ -1,6 +1,6 @@
 ---
 name: mikko-audit-suite
-description: Run every `mikko-*` audit skill that's relevant to the current codebase, in a sensible order, and produce one index document linking to each audit's report. Detects the codebase shape (language, framework, security surface), maps to the suggested audit list (same logic as `/mikko-help --detect`), confirms once with the human, then runs each audit sequentially. Use whenever the user says "run all audits", "full audit", "audit everything", "what's wrong with this codebase", or before a major release. Expensive — total tokens are the sum of every dispatched audit (typically ~100-500K). The orchestrator itself is cheap; the dispatched audits are what cost.
+description: Runs every relevant `mikko-*` audit on the current codebase in a sensible order and writes one index doc linking each report. Detects codebase shape (same logic as `/mikko-help --detect`), confirms once, then dispatches each audit sequentially. Use for "run all audits", "full audit", "audit everything", "what's wrong with this codebase", or before a major release. Expensive — cost is the sum of every dispatched audit (~100-500K tokens); for milestones, not daily.
 barney: Runs every audit that fits this codebase, then writes one summary doc linking to all the reports. Expensive — confirm before running. Use for milestones, not daily.
 ---
 

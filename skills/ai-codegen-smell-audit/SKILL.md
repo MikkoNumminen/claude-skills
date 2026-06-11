@@ -64,22 +64,10 @@ diffs that have not yet been hand-reviewed.
   an AI" — only that a specific concrete pattern appears at a given
   line and matches a documented smell shape.
 
-## What this skill does NOT do
-
-- **Does not detect "AI-written code" in a tribal sense.** Findings
-  are about concrete patterns, not authorship.
-- **Does not modify code.** Output is a markdown report. The human
-  picks fixes.
-- **Does not flag defensive programming with a documented reason.**
-  A `# Defensive: caller in src/foo.py passes None on cache miss`
-  comment immunises the next line.
-- **Does not flag stylistic choices the codebase has explicitly
-  adopted.** If `CLAUDE.md` or `docs/CONVENTIONS.md` documents a
-  convention (e.g. "always use `Path`, never `os.path`"), it is the
-  house style — not drift.
-- **Does not flag patterns at trust boundaries.** Defensive checks
-  on user input, network responses, filesystem reads, or third-party
-  API responses are legitimate.
+(The skill never claims code was "AI-written" — findings cite concrete
+patterns, not authorship — and never modifies code. The boundary rules
+that immunise a line live in **Calibration rules** below, applied before
+any finding is recorded.)
 
 ## The checklist
 
@@ -550,19 +538,11 @@ codebases.
 
 ## Things NOT to do
 
-- **Never modify code.** This skill is read-only. Suggested actions
-  are one-line nudges, not patches.
-- **Never fabricate a finding.** Every entry must cite a real
-  `file:line` you can point at in the working tree.
-- **Never claim a finding proves the code was AI-generated.**
-  Findings cite concrete patterns, not authorship.
-- **Never re-flag a dismissed false positive on an unchanged line.**
-  The false-positive log is load-bearing — read it first.
-- **Never auto-fix.** A `--fix` flag would defeat the point: the
-  human judgement that distinguishes signal from noise is the
-  product, not an obstacle.
-- **Never run during initial code generation.** The skill would
-  chase its own tail. Run on finished diffs only.
+The read-only / not-authorship / run-on-finished-diffs-only guardrails are
+covered above (header, **When NOT to invoke**, **How to run the audit**). The
+one that isn't: **never fabricate a finding** — every entry must cite a real
+`file:line` you can point at in the working tree, and no `--fix` flag exists
+because the human judgement that separates signal from noise *is* the product.
 
 ## Freshness check
 

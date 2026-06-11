@@ -8,7 +8,7 @@ barney: A/B-tests a skill (or many concurrently) — solves the same task twice,
 
 The portfolio's skills-registry PDF models token savings as ~2× cost-per-use × annual uses (i.e. assumes the no-skill alternative would cost 3× a focused skill run). That 3× is a guess. This skill replaces the guess with measurement.
 
-For each skill in scope, the runner spins up two parallel Sonnet sub-agents in two isolated worktrees and gives them the same task — one with no skill awareness ("scout cold"), one with the skill's SKILL.md and instructions to follow it exactly. The harness reports per-sub-agent token usage in its task-notification payload; this skill aggregates those numbers.
+For each skill in scope, the runner gives two parallel Sonnet sub-agents the same task — one cold, one following the SKILL.md — in isolated worktrees, then aggregates the harness's per-sub-agent token usage (mechanics in the Procedure below).
 
 A May-2026 calibration of all 13 Spacepotatis skills measured a **~22% net savings rate**, vs the ~67% the heuristic implies. Two of 13 skills cost MORE per use (security-audit, equipment — both encode rigor rather than scout-savings). That run is the reference implementation this skill formalizes.
 
@@ -26,7 +26,7 @@ A May-2026 calibration of all 13 Spacepotatis skills measured a **~22% net savin
 - **Not for tight feedback loops.** A single A/B costs ~150K tokens; batch of 13 cost ~2M. One-shot calibration, not a routine check.
 - **Not for measuring orchestrator skills that need user gates.** Skills that explicitly STOP at gates (multi-phase audits, security-audit, modular-architecture-audit) can only be measured for Phase 1; downstream phases need human-in-the-loop approval that a sub-agent can't satisfy.
 - **Not for skills whose tasks aren't self-bounded.** "Audit everything for X" works because the scope is the codebase; "fix the bug in PR #143" doesn't, because the answer depends on the PR's actual content. If the task isn't reproducible from the SKILL.md, this skill can't honestly calibrate it.
-- **Not for benchmarking.** N = 1 per skill. A re-run produces a different absolute number. Trust direction + rough magnitude.
+- **Not for benchmarking.** N = 1 per skill — trust direction + rough magnitude, not the absolute number (see Limitations).
 
 ## Procedure
 
@@ -267,10 +267,6 @@ Report: <md path>
 PDF:    <pdf path>
 Data:   <json path>
 ```
-
-## Output schema
-
-See step 6 above for the JSON schema. The MD and PDF are derived presentations; the JSON is the load-bearing artifact.
 
 ## Token expectations
 

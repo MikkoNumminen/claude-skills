@@ -1,6 +1,6 @@
 ---
 name: skill-usage
-description: Measure actual Claude Code skill usage from local transcript JSONL files. Walks `~/.claude/projects/*/*.jsonl` (and their `subagents/*.jsonl` sidechain files), filters assistant messages by the harness-emitted `attributionSkill` field, groups invocations by `(sessionId, skill)`, sums tokens deduped by `requestId`. Emits a dated `SKILL-USAGE-{YYYY-MM-DD}.json` with per-skill measured invocation counts and token totals. Designed to replace the editorial estimates in skill catalogs (`docs/SKILLS.md`, registry verdicts) with real receipts.
+description: Measure actual Claude Code skill usage from local transcript JSONL. Walks `~/.claude/projects/*/*.jsonl` (and `subagents/*.jsonl` sidechains), attributes messages by `attributionSkill`, sums tokens deduped by `requestId`, and emits a dated `SKILL-USAGE-<date>.json` with per-skill counts and token totals. Real receipts to replace editorial estimates in skill catalogs. Use for "how often have I used each skill", "measure skill usage", or a quarterly pass.
 barney: Counts how often you've actually used each Claude Code skill by reading your local session logs. Replaces guesses with real numbers — run quarterly.
 ---
 

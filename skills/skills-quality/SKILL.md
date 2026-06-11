@@ -1,6 +1,6 @@
 ---
 name: skills-quality
-description: Audit Claude Code skills (project + global) for token-economy hygiene — do they push work onto the LLM that a deterministic script should handle? A deterministic Python pre-pass flags smells; only flagged or changed skills enter LLM review. Manifest key is (skill_hash + ruleset_hash), so editing the rules re-keys every skill. Use whenever the user says "audit my skills for quality / token waste / LLM-as-loop smells", "are my skills well-designed", or invokes `/mikko-skills-quality`.
+description: Audit Claude Code skills (project + global) for token-economy hygiene — do they push work onto the LLM that a deterministic script should handle? A Python pre-pass flags smells; only flagged or changed skills enter LLM review (manifest keyed on skill_hash + ruleset_hash, so editing the rules re-scans all). Use for "audit my skills for token waste / LLM-as-loop smells", "are my skills well-designed", or `/mikko-skills-quality`.
 barney: Flags Claude Code skills that ask the LLM to do work a companion script should — long imperative prose, oversized SKILL.md, missing frontmatter. Deterministic pre-pass; only flagged or changed enter LLM review.
 ---
 

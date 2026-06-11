@@ -34,7 +34,7 @@ This skill is the antidote — every change must be traceable to a concrete drif
 
 ## What this skill does NOT do
 
-The hard boundaries (no regenerate, no commit/push, no other files, no invented voice, no auto-resolving the unverifiable) are stated authoritatively in "When NOT to invoke", "Calibration rules", and "Things NOT to do". One distinction worth pinning here:
+The hard boundaries (no regenerate, no commit/push, no other files, no invented voice) are stated authoritatively in "When NOT to invoke", "Calibration rules", and "Things NOT to do"; unverifiable claims are flagged-not-touched per the status-drift check and the "Unverifiable claims" report section. One distinction worth pinning here:
 
 - **Does not change tagline, hero text, or asset-bearing sections** (badges, screenshots, logos) unless they make a factual claim that is now wrong. A tagline like "the friendliest audit skill" is voice, not fact — leave it. A tagline like "audits 12 languages" when the repo audits 5 is fact — flag and rewrite.
 

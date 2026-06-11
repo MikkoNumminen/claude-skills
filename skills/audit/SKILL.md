@@ -6,11 +6,6 @@ barney: Looks for bugs in your code — leaks, races, swallowed errors, missing 
 
 # audit
 
-Runs a comprehensive robustness audit in three phases. Produces a
-structured report at `docs/audits/audit-<YYYY-MM-DD>.md`
-plus a severity-ranked list of findings suitable for translating into
-one fix branch per area.
-
 ## Why this skill exists
 
 A single-agent code review tends to produce 5–10 high-level notes and
@@ -30,7 +25,8 @@ language, and prior audit coverage.
 
 ## When to invoke
 
-- "audit this codebase", "find bugs", "robustness review"
+Trigger phrases are in the frontmatter `description`. Beyond those:
+
 - Before a major release to shake out hidden races and leaks
 - After a big refactor to catch cleanup-path regressions
 - On unfamiliar code to produce a prioritised defect list
@@ -332,28 +328,25 @@ were unavailable and why ("not on PATH" / "no config detected" /
 
 ## Follow-up workflow (short version)
 
-After the report lands, the recommended loop is: user strikes any
-false positives with `~~…~~` and a reason; user creates one branch
-per area (or batch), critical/high first; each commit cites the
-area with Conventional Commits (e.g. `fix(<area>): <what>`); merge
-everything with one `merge:` commit summarising the landings.
-Parallel branches are safe because the audit's five scopes are
-non-overlapping by construction.
+After the report lands: user strikes any false positives with
+`~~…~~` and a reason, then works the "Recommended next steps"
+branches (above) — one per area or batch, critical/high first,
+`fix(<area>): <what>` commits, all merged with one summarising
+`merge:` commit. Parallel branches are safe because the five scopes
+are non-overlapping by construction.
 
 ## Known limitations
 
 - Static-analysis tools usually are not installed in application
   venvs (they live in dev venvs). Expect Phase 1 to be partial or
   skipped.
-- Subagents have context limits. On repos larger than ~300 source
-  files, pass each subagent a `--scope <glob>` hint so it can fit
-  the relevant slice.
+- Subagents have context limits — on repos over ~300 source files
+  use the `--scope <glob>` hint (see Phase 2).
 - Pattern-matching is heuristic. Some findings will be false
   positives; the user's sanity-check before translating to fixes is
   part of the workflow, not a weakness.
-- The skill does **not** find performance hotspots (profiling is a
-  different tool) and does **not** grade architectural decisions
-  (that is a design review, not an audit).
+- Out of scope: performance hotspots and architectural review (see
+  "When NOT to invoke").
 
 ## Token expectations
 

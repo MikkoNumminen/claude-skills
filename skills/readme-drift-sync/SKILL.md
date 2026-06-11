@@ -6,7 +6,7 @@ barney: Checks whether the README still matches the repo, and rewrites only the 
 
 # readme-drift-sync
 
-Detects specific drift between what a repo actually contains and what its `README.md` claims, then rewrites only the drifted sections in the README's existing voice. **Modifies `README.md` in the working tree** (does NOT commit, does NOT push). The human reviews the diff and commits.
+**Modifies `README.md` in the working tree** (does NOT commit, does NOT push). The human reviews the diff and commits.
 
 ## Why this skill exists separately
 
@@ -34,12 +34,9 @@ This skill is the antidote — every change must be traceable to a concrete drif
 
 ## What this skill does NOT do
 
-- **Does not regenerate the README from scratch.** Only drifted sections are rewritten; everything else is byte-identical to the input.
-- **Does not commit or push.** Output is a working-tree edit. The human reviews `git diff README.md` and commits.
-- **Does not modify any other file.** No `CONTRIBUTING.md`, no `CHANGELOG.md`, no source files. The drift report and voice-profile cache go under `docs/audits/` — those are new artifacts, not edits.
+The hard boundaries (no regenerate, no commit/push, no other files, no invented voice) are stated authoritatively in "When NOT to invoke", "Calibration rules", and "Things NOT to do"; unverifiable claims are flagged-not-touched per the status-drift check and the "Unverifiable claims" report section. One distinction worth pinning here:
+
 - **Does not change tagline, hero text, or asset-bearing sections** (badges, screenshots, logos) unless they make a factual claim that is now wrong. A tagline like "the friendliest audit skill" is voice, not fact — leave it. A tagline like "audits 12 languages" when the repo audits 5 is fact — flag and rewrite.
-- **Does not introduce voice that wasn't already in the README.** No new metaphors, no new humor register, no new pronouns. The voice profile is a constraint, not an inspiration.
-- **Does not auto-resolve drift it can't verify.** A claim like "deployed to 6000 customers" cannot be checked against the repo — flag it in the drift report under "unverifiable claims" and move on.
 
 ## The drift checklist
 
@@ -282,10 +279,10 @@ Ten predicted-vs-intended firings live in [`trigger-calibration.md`](trigger-cal
 - **Never regenerate the README from scratch.** Even if all five drift checks fire, edit section-by-section. The hero/tagline/structural backbone is voice, not fact.
 - **Never commit or push.** This skill stops at the working-tree edit. The human commits.
 - **Never modify `CONTRIBUTING.md`, `CHANGELOG.md`, or any other markdown.** Out of scope.
-- **Never silently update a dated claim.** Dates anchor the claim to a moment; rewriting the number without the date erases the truth of when it was measured.
+- **Never silently update a dated claim** (see calibration rules).
 - **Never invent a voice the README didn't have.** If the existing README is dry and impersonal, the rewrites stay dry and impersonal. Don't "improve" the prose.
-- **Never proceed without the voice profile.** If the profile extraction fails (empty README, unreadable content), bail. No profile, no rewrites.
-- **Never rewrite a section that failed the voice-match test twice.** Flag for manual rewrite; the report is the deliverable for that section, not the edit.
+- **Never proceed without the voice profile.** If extraction fails (empty README, unreadable content), bail. No profile, no rewrites.
+- **Never rewrite a section that failed the voice-match test twice** (see the hard rule). Flag for manual rewrite.
 
 ## Freshness check
 

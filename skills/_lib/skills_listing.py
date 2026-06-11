@@ -50,6 +50,7 @@ def parse_frontmatter(text: str) -> dict[str, str]:
     which are single-line scalars. Returns {} if the file has no `---` block.
     Multi-line YAML values are not supported (the listing fields never use them).
     """
+    text = text.lstrip("﻿")  # tolerate a UTF-8 BOM on the SKILL.md
     if not text.startswith("---"):
         return {}
     # Body after the opening fence, up to the closing fence.
@@ -60,13 +61,13 @@ def parse_frontmatter(text: str) -> dict[str, str]:
     block = rest[:end]
     out: dict[str, str] = {}
     for line in block.splitlines():
-        # Only treat unindented `key: value` lines as fields — indented lines
-        # belong to a previous key's block scalar, which we don't parse.
+        # Only treat unindented lines as fields — indented lines belong to a
+        # previous key's block scalar, which we don't parse.
         if not line or line[0] in " \t#":
             continue
-        if ": " not in line and not line.endswith(":"):
+        key, sep, value = line.partition(":")
+        if not sep:  # not a `key:`/`key: value` line at all
             continue
-        key, _, value = line.partition(":")
         key = key.strip()
         if key in ("name", "description", "barney"):
             out[key] = value.strip()
@@ -126,26 +127,33 @@ def _truncate(text: str, cap: int) -> str:
     return text[: cap - 1].rstrip() + "…"
 
 
-def _label(skill: Skill) -> str:
-    return f"{skill.name} (project)" if skill.scope == "project" else skill.name
+def _label(skill: Skill, cap: int | None = None) -> str:
+    """Display name + a `(project)` tag for project-local overrides.
+
+    When `cap` is set, the *name* is truncated to fit but the tag is always
+    appended — the tag is the override signal, so it must survive truncation.
+    """
+    tag = " (project)" if skill.scope == "project" else ""
+    name = skill.name
+    if cap is not None and len(name) > cap:
+        name = name[: cap - 1] + "…"
+    return name + tag
 
 
 def render_table(skills: list[Skill], barney: bool = False) -> str:
     """Two-column name + (description|barney) table, one line per skill."""
     if not skills:
         return _empty_message()
-    width = min(max(len(_label(s)) for s in skills), NAME_COL_CAP)
+    labels = [_label(s, NAME_COL_CAP) for s in skills]
+    width = max(len(label) for label in labels)
     title = "your installed mikko-* skills" + (" (barney style)" if barney else "")
     lines = [f"{title}:", ""]
-    for s in skills:
+    for s, label in zip(skills, labels):
         if barney:
             col = s.barney or (_truncate(s.description, DESC_CAP) + " (no barney)")
         else:
             col = _truncate(s.description, DESC_CAP)
-        name = _label(s)
-        if len(name) > NAME_COL_CAP:
-            name = name[: NAME_COL_CAP - 1] + "…"
-        lines.append(f"  {name.ljust(width)}  {col}")
+        lines.append(f"  {label.ljust(width)}  {col}")
     lines += ["", "tip: `/mikko<Tab>` shows names only. For the cross-repo "
               "registry with token math, run `/skill-registry`."]
     return "\n".join(lines)
@@ -195,7 +203,13 @@ def fingerprint(cwd: Path) -> dict[str, object]:
     if pkg.is_file():
         try:
             data = json.loads(pkg.read_text(encoding="utf-8", errors="replace"))
-            deps = {**data.get("dependencies", {}), **data.get("devDependencies", {})}
+            # package.json may be valid JSON but not an object, and either deps
+            # field may be a non-object — guard both so --detect degrades cleanly.
+            if isinstance(data, dict):
+                for field in ("dependencies", "devDependencies"):
+                    section = data.get(field)
+                    if isinstance(section, dict):
+                        deps.update(section)
         except (json.JSONDecodeError, OSError):
             deps = {}
     dep_names = {d.lower() for d in deps}
@@ -218,9 +232,14 @@ def fingerprint(cwd: Path) -> dict[str, object]:
             shape["framework"] = fw
             break
 
+    # Auth libs ship both bare (`clerk`, `auth0`) and scoped (`@clerk/nextjs`,
+    # `@auth0/nextjs-auth0`) — match the scope segment too, not just the bare name.
+    def _is_auth(d: str) -> bool:
+        return any(d == a or d.startswith(a + "-") or d.startswith("@" + a + "/")
+                   for a in _AUTH)
+
     hits = sorted(d for d in dep_names
-                  if d in _DB or d in _NET or d in _CRYPTO
-                  or any(d == a or d.startswith(a + "-") for a in _AUTH))
+                  if d in _DB or d in _NET or d in _CRYPTO or _is_auth(d))
     if hits:
         shape["security_sensitive"] = True
         shape["security_hits"] = hits

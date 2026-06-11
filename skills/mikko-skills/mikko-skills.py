@@ -7,6 +7,7 @@ Stdlib only, Python 3.11+.
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -31,4 +32,10 @@ from skills_listing import discover_skills, render_barney_list  # noqa: E402
 
 
 if __name__ == "__main__":
+    # No flags — this view is barney-only — but parse so `--help` works and a
+    # stray flag errors instead of being silently ignored.
+    argparse.ArgumentParser(
+        prog="mikko-skills",
+        description="List installed mikko-* skills with plain-English barney lines.",
+    ).parse_args()
     print(render_barney_list(discover_skills(Path.cwd(), Path.home())))

@@ -49,6 +49,14 @@ class FrontmatterTests(unittest.TestCase):
         self.assertNotIn("not_a_field", fm)
         self.assertEqual(fm["name"], "foo")
 
+    def test_strips_utf8_bom(self):
+        fm = sl.parse_frontmatter("﻿---\nname: foo\ndescription: x\n---\n")
+        self.assertEqual(fm.get("name"), "foo")
+
+    def test_key_without_space_after_colon(self):
+        fm = sl.parse_frontmatter("---\nname:foo\ndescription: x\n---\n")
+        self.assertEqual(fm.get("name"), "foo")
+
 
 class DiscoveryTests(unittest.TestCase):
     def setUp(self):
@@ -105,6 +113,13 @@ class RenderTests(unittest.TestCase):
         self.assertIn("no mikko-* skills installed", sl.render_table([]))
         self.assertIn("no mikko-* skills installed", sl.render_barney_list([]))
 
+    def test_project_tag_survives_name_truncation(self):
+        # A long project-local name must still show its (project) override tag
+        # in the table — the tag is truncation-immune.
+        long = sl.Skill("mikko-react-anti-patterns-audit", "desc", None, "project")
+        out = sl.render_table([long])
+        self.assertIn("(project)", out)
+
 
 class DetectTests(unittest.TestCase):
     def setUp(self):
@@ -139,6 +154,27 @@ class DetectTests(unittest.TestCase):
         self.assertIn("Python", shape["languages"])
         recs = [a for a, _ in sl.recommend_audits(shape)]
         self.assertEqual(recs, ["audit", "ai-codegen-smell-audit"])
+
+    def test_non_object_package_json_does_not_crash(self):
+        (self.cwd / "package.json").write_text("[1, 2, 3]")
+        shape = sl.fingerprint(self.cwd)  # must not raise
+        self.assertFalse(shape["security_sensitive"])
+
+    def test_non_dict_dependencies_does_not_crash(self):
+        (self.cwd / "package.json").write_text('{"dependencies": "oops"}')
+        shape = sl.fingerprint(self.cwd)  # must not raise
+        self.assertFalse(shape["security_sensitive"])
+
+    def test_scoped_auth_deps_detected(self):
+        self._pkg({"@clerk/nextjs": "5", "@auth0/nextjs-auth0": "3"})
+        shape = sl.fingerprint(self.cwd)
+        self.assertTrue(shape["security_sensitive"])
+        self.assertIn("security-audit", [a for a, _ in sl.recommend_audits(shape)])
+
+    def test_unscoped_lookalike_not_mismatched(self):
+        # `next-authorize` must NOT trip the `next-auth` matcher (over-match guard).
+        self._pkg({"next-authorize": "1"})
+        self.assertFalse(sl.fingerprint(self.cwd)["security_sensitive"])
 
 
 if __name__ == "__main__":

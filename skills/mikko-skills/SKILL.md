@@ -16,7 +16,7 @@ Run the bundled script and print its output verbatim:
 python3 ~/.claude/skills/mikko-skills/mikko-skills.py
 ```
 
-(From the source repo: `python3 skills/mikko-skills/mikko-skills.py`.) It globs `~/.claude/skills/mikko-*/SKILL.md` and the project-local `.claude/skills/mikko-*/SKILL.md`, reads each skill's `barney:` field (falling back to the first sentence of `description`, tagged `(no barney yet)`), dedupes with project-local winning, and prints a vertical name-then-one-liner list.
+(From the source repo: `python3 skills/mikko-skills/mikko-skills.py`.) It globs `~/.claude/skills/mikko-*/SKILL.md` and the project-local `.claude/skills/mikko-*/SKILL.md`, reads each skill's `barney:` field (falling back to a truncated `description`, tagged `(no barney yet)`), dedupes with project-local winning, and prints a vertical name-then-one-liner list.
 
 ## Why barney style
 

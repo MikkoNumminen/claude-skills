@@ -44,7 +44,7 @@ This is the same decision-matrix logic [`/mikko-help --detect`](../mikko-help/SK
 | Unknown / mixed / no clear signal | `audit` |
 | Any of the above + security-sensitive deps detected (Node: `express`, `pg`, `jsonwebtoken`; .NET: `Microsoft.AspNetCore.Identity`, `EntityFrameworkCore`, `Authentication.Google`, etc.) | (above list) + `security-audit` appended |
 
-The detector reads a handful of root config files (`package.json`, `tsconfig.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `*.sln`/`*.csproj`/`global.json`, framework configs) and counts file-extension density. Does NOT walk the source tree — that's each individual audit's own job.
+The detector reads a handful of root config files (`package.json`, `tsconfig.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `*.sln`/`*.csproj`/`global.json`, framework configs) and counts file-extension density. Does NOT walk the source tree — that's each individual audit's own job. A repo that matches more than one stack row (e.g. a React front-end on a .NET backend in one root) gets **every** matching stack-specific audit, then the universal ones.
 
 ### Bail conditions
 

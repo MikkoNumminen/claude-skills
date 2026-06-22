@@ -148,7 +148,7 @@ The outer fence below is 4 backticks so the inner code blocks render on GitHub.
   ```csharp
   var books = await _db.Books.AsNoTracking().Where(b => b.UserId == userId).ToListAsync(ct);  // ✓
   ```
-  Also legitimate: the query loads entities that are then modified and `SaveChangesAsync`d — tracking is required, so no flag.
+  Also legitimate: the query loads entities that are then modified and `SaveChangesAsync`d — tracking is required, so no flag. **And a `.Select(x => new …Dto{…})` projection** returns non-entity types EF Core never tracks, so `AsNoTracking()` is redundant — never flag a projected query (this is the most common B1 false positive).
 - **Severity default.** low (medium on a hot path returning many rows).
 
 #### B2. client-side-evaluation
@@ -385,28 +385,28 @@ Seed patterns (ripgrep syntax; starting nets, not proofs — the subagent confir
 | Check | Seed pattern (`rg`) | Judge step narrows on |
 | --- | --- | --- |
 | A1 captive-dependency | `AddSingleton<` | …the registered type's ctor capturing a scoped service |
-| A2 manual-httpclient | `new HttpClient\(` | …not a factory/typed client, not a test |
-| A3 lifetime-mismatch | `Add(Singleton\|Scoped\|Transient)<` | …stateful/non-thread-safe type, wrong lifetime |
-| A4 ioptions-bypass | `_config\[\|IConfiguration` | …string-key reads that should be bound options |
-| B1 missing-asnotracking | `\.(ToListAsync\|FirstOrDefaultAsync\|SingleAsync\|ToArrayAsync)\(` | …read-only path with no `AsNoTracking()` upstream |
-| B2 client-side-eval | `\.ToList\(\)\|\.AsEnumerable\(\)` | …followed by LINQ filtering/paging |
+| A2 manual-httpclient-instantiation | `new HttpClient\(` | …not a factory/typed client, not a test |
+| A3 service-lifetime-mismatch | `Add(Singleton\|Scoped\|Transient)<` | …stateful/non-thread-safe type, wrong lifetime |
+| A4 ioptions-binding-bypass | `_config\[\|IConfiguration` | …string-key reads that should be bound options |
+| B1 missing-asnotracking | `\.(ToListAsync\|FirstOrDefaultAsync\|SingleAsync\|ToArrayAsync)\(` | …read-only path, no `AsNoTracking()`, **and not a `.Select(…)` projection** (EF doesn't track non-entity projections) |
+| B2 client-side-evaluation | `\.ToList\(\)\|\.AsEnumerable\(\)` | …followed by LINQ filtering/paging |
 | B3 missing-cancellationtoken | `Async\(` *(multiline)* | …`ct` in scope but not forwarded |
-| B4 dbcontext-concurrent | `Task\.WhenAll\|Parallel\.For` | …same `DbContext` in the awaited tasks |
+| B4 dbcontext-concurrent-use | `Task\.WhenAll\|Parallel\.For` | …same `DbContext` in the awaited tasks (not two HTTP clients) |
 | B5 unbounded-query | `\.ToListAsync\(` | …growable table, no `.Take(` |
 | C1 sync-over-async | `\.Result\b\|\.Wait\(\)\|\.GetAwaiter\(\)\.GetResult\(\)` | high-precision; judge confirms request path |
 | C2 async-void | `async void ` | …not an event-handler signature |
-| C3 fire-and-forget | `_ = \w+.*Async\(` *(multiline)* | …unawaited, no exception handling |
-| D1 html-raw | `Html\.Raw\(\|MarkupString\|new HtmlString` | …value not sanitised / not a constant |
-| D2 overposting | `\[BindProperty\]` | …bound to an EF entity, not a DTO |
+| C3 fire-and-forget-unobserved | `_ = \w+.*Async\(` *(multiline)* | …unawaited, no exception handling |
+| D1 html-raw-untrusted | `Html\.Raw\(\|MarkupString\|new HtmlString` | …value not sanitised / not a constant |
+| D2 overposting-via-bindproperty | `\[BindProperty\]` | …bound to an EF entity, not a DTO |
 | D3 mutation-on-get | `OnGet` *(multiline +body)* | …writes / `SignOut` / `Remove` in the body |
 | D4 open-redirect | `Redirect\(` | …user-supplied URL, not `LocalRedirect` |
 | E1 swallowed-exception | `catch\s*(\([^)]*\))?\s*\{` *(multiline)* | …empty / no-log / returns default |
-| E2 catch-swallows-cancel | `catch \(Exception` *(multiline)* | …no `when (… is not OperationCanceledException)` |
-| E3 idisposable-leak | `new \w+(Connection\|Reader\|Writer\|Stream\|CancellationTokenSource)\(` | …owned, no `using`, not DI-owned |
+| E2 catch-all-swallows-cancellation | `catch \(Exception` *(multiline)* | …no `when (… is not OperationCanceledException)` |
+| E3 idisposable-not-disposed | `new \w+(Connection\|Reader\|Writer\|Stream\|CancellationTokenSource)\(` | …owned, no `using`, not DI-owned |
 
 If the `Grep` tool is somehow unavailable, the subagents fall back to scanning directly — and the report notes the pre-pass was skipped so the reader knows tokens weren't bounded.
 
-### Phase 2 — five parallel subagents
+### Phase 2 — parallel subagents (up to five, candidate-gated)
 
 Dispatch **only the groups Phase 1.5 found candidates for** (one message, parallel `Agent` calls, `subagent_type: "Explore"` — the audit is read-only). Hand each subagent **its group's candidate list** (file:line + matched line); it judges those candidates — reads ±10 lines of context around each, applies the Calibration rules, and emits a finding only when the shape matches the smell and not the legitimate counter-example. **Subagents do not scan the tree for discovery** — discovery already happened deterministically in Phase 1.5. Scopes A–E are non-overlapping; if an issue straddles two, the more specific group claims it. Group D is skipped when there's no web surface *or* no D-candidates.
 
@@ -451,7 +451,7 @@ The outer fence is 4 backticks so the inner blocks render.
 - Commit audited: `<git rev-parse HEAD>` on branch `<git branch --show-current>`
 - Scope: {project root or --source path}
 - Pre-flight: {one-liner}
-- Coverage: Phase 1 {ran|skipped: reason}; Phase 2 {five|four} subagents (A DI · B EF Core · C async · D web{ — skipped: no Razor} · E errors/resources)
+- Coverage: Phase 1 {ran|skipped: reason}; Phase 2 {N of 5} subagents dispatched — groups with 0 candidates skipped (A DI · B EF Core · C async · D web · E errors/resources)
 - Total findings: N (critical: N · high: N · medium: N · low: N)
 
 ## Per-check tally
@@ -560,7 +560,7 @@ pattern = "pre-flight"
 [[check]]
 kind = "file_contains"
 path = "SKILL.md"
-pattern = "Phase 2 — five parallel subagents"
+pattern = "parallel subagents"
 
 [[check]]
 kind = "file_contains"

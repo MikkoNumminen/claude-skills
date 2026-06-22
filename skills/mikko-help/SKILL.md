@@ -30,7 +30,7 @@ python3 ~/.claude/skills/mikko-help/mikko-help.py [--barney] [--detect]
 
 ## Detection matrix (`--detect`)
 
-The recommendation logic lives in `skills_listing.recommend_audits`. In short: React → `react-anti-patterns-audit` first, then the universal `ai-codegen-smell-audit` + `audit`; .NET / ASP.NET Core → `dotnet-audit` first, then `ai-codegen-smell-audit` + `audit`; other non-React → `audit` + `ai-codegen-smell-audit`; security-sensitive deps (auth/db/network/crypto libraries, or ASP.NET Core Identity / EF Core) lift `security-audit` from skip to suggest. React Native adds `--force` to bypass the web-shape pre-flight.
+The recommendation logic lives in `skills_listing.recommend_audits`. In short: React → `react-anti-patterns-audit` first, then the universal `ai-codegen-smell-audit` + `audit`; .NET / ASP.NET Core → `dotnet-audit` first, then `ai-codegen-smell-audit` + `audit`; other non-React → `audit` + `ai-codegen-smell-audit`; security-sensitive deps (auth/db/network/crypto libraries, or ASP.NET Core Identity / EF Core) lift `security-audit` from skip to suggest. React Native adds `--force` to bypass the web-shape pre-flight. A repo matching multiple stacks (e.g. React + .NET in one root) gets each stack's audit.
 
 ## Failure modes
 

@@ -251,7 +251,7 @@ def fingerprint(cwd: Path) -> dict[str, object]:
     # (small, XML) project files — bounded shallow globs only, never a full
     # tree walk — for security-sensitive frameworks.
     dotnet_projects = (list(cwd.glob("*.csproj")) + list(cwd.glob("*/*.csproj"))
-                       + list(cwd.glob("src/*/*.csproj")))
+                       + list(cwd.glob("*/*/*.csproj")))  # root, flat, and src|tests|apps/<proj>/
     if (dotnet_projects or list(cwd.glob("*.sln"))
             or (cwd / "global.json").is_file()
             or (cwd / "Directory.Build.props").is_file()):
@@ -282,15 +282,18 @@ def fingerprint(cwd: Path) -> dict[str, object]:
 def recommend_audits(shape: dict[str, object]) -> list[tuple[str, str]]:
     """Map a fingerprint to an ordered (audit, rationale) list (the decision matrix)."""
     recs: list[tuple[str, str]] = []
+    # Stack-specific lenses first. A polyglot repo (e.g. a React front-end on a
+    # .NET backend in one root) gets BOTH — not whichever an if/elif reached first.
+    stack: list[tuple[str, str]] = []
     if shape.get("react"):
         rn = "React Native" in shape.get("languages", [])
-        recs.append(("react-anti-patterns-audit" + (" --force" if rn else ""),
-                     "targets the React-specific layer"))
+        stack.append(("react-anti-patterns-audit" + (" --force" if rn else ""),
+                      "targets the React-specific layer"))
+    if shape.get("dotnet"):
+        stack.append(("dotnet-audit", "targets the ASP.NET Core / EF Core / C# layer"))
+    if stack:
+        recs.extend(stack)
         recs.append(("ai-codegen-smell-audit", "universal LLM-codegen patterns"))
-        recs.append(("audit", "universal robustness audit"))
-    elif shape.get("dotnet"):
-        recs.append(("dotnet-audit", "targets the ASP.NET Core / EF Core / C# layer"))
-        recs.append(("ai-codegen-smell-audit", "language-agnostic LLM-codegen patterns"))
         recs.append(("audit", "universal robustness audit"))
     else:
         recs.append(("audit", "universal robustness audit, always useful"))

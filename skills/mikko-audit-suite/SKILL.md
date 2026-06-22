@@ -36,14 +36,15 @@ This is the same decision-matrix logic [`/mikko-help --detect`](../mikko-help/SK
 | --- | --- |
 | React (any flavor) | `react-anti-patterns-audit` → `ai-codegen-smell-audit` → `audit` |
 | React Native | `react-anti-patterns-audit --force` → `ai-codegen-smell-audit` → `audit` |
+| .NET / ASP.NET Core (C#) | `dotnet-audit` → `ai-codegen-smell-audit` → `audit` |
 | TypeScript without React | `audit` → `ai-codegen-smell-audit` |
 | Python | `audit` → `ai-codegen-smell-audit` |
 | Rust / Go | `audit` → `ai-codegen-smell-audit` |
 | Plain JS (no TS, no framework) | `audit` → `ai-codegen-smell-audit` |
 | Unknown / mixed / no clear signal | `audit` |
-| Any of the above + security-sensitive deps detected (`express`, `pg`, `jsonwebtoken`, etc.) | (above list) + `security-audit` appended |
+| Any of the above + security-sensitive deps detected (Node: `express`, `pg`, `jsonwebtoken`; .NET: `Microsoft.AspNetCore.Identity`, `EntityFrameworkCore`, `Authentication.Google`, etc.) | (above list) + `security-audit` appended |
 
-The detector reads up to 5 root config files (`package.json`, `tsconfig.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, framework configs) and counts file-extension density. Does NOT walk the source tree — that's each individual audit's own job.
+The detector reads a handful of root config files (`package.json`, `tsconfig.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `*.sln`/`*.csproj`/`global.json`, framework configs) and counts file-extension density. Does NOT walk the source tree — that's each individual audit's own job.
 
 ### Bail conditions
 
@@ -62,7 +63,8 @@ Same as `/mikko-help --detect`'s detection pass:
 - `Read` root `package.json` if present
 - `Read` `tsconfig.json` (existence only)
 - `Read` `pyproject.toml` / `requirements.txt` / `setup.py` / `Cargo.toml` / `go.mod` if present
-- `Glob` `*.{tsx,jsx,py,rs,go,vue,svelte}` for file-extension density
+- `Glob` `*.sln` / `*.csproj` (and read the project's XML for `Microsoft.AspNetCore.*` / `EntityFrameworkCore` to flag .NET + its security surface); `global.json` / `Directory.Build.props` as fixed markers
+- `Glob` `*.{tsx,jsx,py,rs,go,vue,svelte,cs,cshtml,razor}` for file-extension density
 
 Map detected signals to the recommendation list. If empty, bail per the conditions above.
 

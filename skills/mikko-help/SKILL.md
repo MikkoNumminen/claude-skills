@@ -24,13 +24,13 @@ python3 ~/.claude/skills/mikko-help/mikko-help.py [--barney] [--detect]
 
 - *(none)* — list every skill with its `description`. Default; cheapest.
 - `--barney` — show each skill's plain-English `barney:` line instead (falls back to the truncated `description`, tagged `(no barney)`, for skills without one).
-- `--detect` — also fingerprint the current repo (reads ~5 root config files — `package.json`, `tsconfig.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, framework configs) and print an ordered "which audit should I run here" recommendation. Does not walk the source tree and does not dispatch audits — it's a hallway sign, not a tour guide.
+- `--detect` — also fingerprint the current repo (reads a handful of root config files — `package.json`, `tsconfig.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `*.sln`/`*.csproj`/`global.json`, framework configs) and print an ordered "which audit should I run here" recommendation. Does not walk the source tree and does not dispatch audits — it's a hallway sign, not a tour guide.
 
 `--detect` and `--barney` are independent and combine.
 
 ## Detection matrix (`--detect`)
 
-The recommendation logic lives in `skills_listing.recommend_audits`. In short: React → `react-anti-patterns-audit` first, then the universal `ai-codegen-smell-audit` + `audit`; non-React → `audit` + `ai-codegen-smell-audit`; security-sensitive deps (auth/db/network/crypto libraries) lift `security-audit` from skip to suggest. React Native adds `--force` to bypass the web-shape pre-flight.
+The recommendation logic lives in `skills_listing.recommend_audits`. In short: React → `react-anti-patterns-audit` first, then the universal `ai-codegen-smell-audit` + `audit`; .NET / ASP.NET Core → `dotnet-audit` first, then `ai-codegen-smell-audit` + `audit`; other non-React → `audit` + `ai-codegen-smell-audit`; security-sensitive deps (auth/db/network/crypto libraries, or ASP.NET Core Identity / EF Core) lift `security-audit` from skip to suggest. React Native adds `--force` to bypass the web-shape pre-flight.
 
 ## Failure modes
 

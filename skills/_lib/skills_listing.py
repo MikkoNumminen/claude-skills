@@ -196,6 +196,7 @@ def fingerprint(cwd: Path) -> dict[str, object]:
     """
     shape: dict[str, object] = {
         "languages": [], "framework": None, "react": False,
+        "dotnet": False,
         "security_sensitive": False, "security_hits": [],
     }
     deps: dict[str, str] = {}
@@ -243,6 +244,38 @@ def fingerprint(cwd: Path) -> dict[str, object]:
     if hits:
         shape["security_sensitive"] = True
         shape["security_hits"] = hits
+
+    # --- .NET (C#) ---------------------------------------------------------
+    # No package.json analogue at the root: detect via a solution file or the
+    # fixed build markers (global.json / Directory.Build.props), then read the
+    # (small, XML) project files — bounded shallow globs only, never a full
+    # tree walk — for security-sensitive frameworks.
+    dotnet_projects = (list(cwd.glob("*.csproj")) + list(cwd.glob("*/*.csproj"))
+                       + list(cwd.glob("src/*/*.csproj")))
+    if (dotnet_projects or list(cwd.glob("*.sln"))
+            or (cwd / "global.json").is_file()
+            or (cwd / "Directory.Build.props").is_file()):
+        shape["dotnet"] = True
+        if ".NET" not in shape["languages"]:
+            shape["languages"].append(".NET")
+        dotnet_hits: list[str] = []
+        for proj in dotnet_projects[:6]:
+            try:
+                xml = proj.read_text(encoding="utf-8", errors="replace").lower()
+            except OSError:
+                continue
+            for needle, label in (
+                ("microsoft.aspnetcore.identity", "aspnetcore-identity"),
+                ("entityframeworkcore", "ef-core"),
+                ("microsoft.aspnetcore", "aspnetcore"),
+                ("authentication.google", "google-oauth"),
+            ):
+                if needle in xml and label not in dotnet_hits:
+                    dotnet_hits.append(label)
+        if dotnet_hits:
+            shape["security_sensitive"] = True
+            shape["security_hits"] = sorted(set(shape["security_hits"]) | set(dotnet_hits))
+
     return shape
 
 
@@ -254,6 +287,10 @@ def recommend_audits(shape: dict[str, object]) -> list[tuple[str, str]]:
         recs.append(("react-anti-patterns-audit" + (" --force" if rn else ""),
                      "targets the React-specific layer"))
         recs.append(("ai-codegen-smell-audit", "universal LLM-codegen patterns"))
+        recs.append(("audit", "universal robustness audit"))
+    elif shape.get("dotnet"):
+        recs.append(("dotnet-audit", "targets the ASP.NET Core / EF Core / C# layer"))
+        recs.append(("ai-codegen-smell-audit", "language-agnostic LLM-codegen patterns"))
         recs.append(("audit", "universal robustness audit"))
     else:
         recs.append(("audit", "universal robustness audit, always useful"))

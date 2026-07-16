@@ -34,7 +34,20 @@ This library is a collection of recipes you can install into any project.
 
 ## Install
 
-Two installers, for two different intents:
+### As a plugin — the whole library, no clone
+
+The repo is a Claude Code plugin, served from the shared [`claude-agents`](../claude-agents) marketplace. Inside any Claude Code session:
+
+```
+/plugin marketplace add MikkoNumminen/claude-agents
+/plugin install claude-skills
+```
+
+Update later with `/plugin update claude-skills@claude-agents`. Plugin-installed skills are **namespaced** by the plugin name — `/claude-skills:audit`, not `/audit` or `/mikko-audit`.
+
+Prefer the scripts below when you want original/`mikko-`prefixed names, a subset of skills, or symlinked auto-updates.
+
+Two script installers, for two different intents:
 
 ### `install.sh` — one skill at a time, original name, symlinked
 

@@ -1,0 +1,7 @@
+{
+  "name": "claude-skills",
+  "description": "Audit and maintenance skills for Claude Code: robustness, security, React, .NET and LLM-injection audits, README drift sync, and skill measurement/calibration tooling.",
+  "author": {
+    "name": "MikkoNumminen"
+  }
+}
